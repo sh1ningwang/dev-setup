@@ -1,0 +1,22 @@
+i want to do something like this 
+
+i want to have the following skills: 
+
+- analyze-functional-requirements
+  - when to invoke: whenever there's a need to come up with a detailed functional requirements based on a feature or issue description 
+  - description: come up with a highly detailed functional requirements with clear epics and user stories definition and description
+- architect-technical-implementation 
+  - when to invoke: whenever there's a need to come up with a detailed technical architecture design 
+  - description: come up with a high-level techinical architecture design, describing the system modules design, API design, service interal logics, 
+- architect-technical-testing
+- implement-backend 
+- implement-frontend 
+- debug 
+- review-code 
+- review-security-risk 
+- review-functional-requirements
+- write-documentation
+
+i want to have the following rules
+- always use latest opus model for any kind of operations 
+- always try to spawn agent team (instead of using subagents) to do work, the team lead shall analyze what types of agents (roles) are needed and how many are required for each role. upon spawning the team, the team lead shall inject the corresponding skills (particular to this agent's role) required to its team member agents. all spawned agents must respect the roles and skills injected.

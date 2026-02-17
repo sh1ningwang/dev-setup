@@ -21,11 +21,6 @@ return {
     },
   },
 
-  -- Icon highlight overrides via Catppuccin integration
-  {
-    "nvim-tree/nvim-web-devicons",
-    opts = function(_, opts)
-      opts.color_icons = true
-    end,
-  },
+  -- Disable tokyonight (installed by LazyVim but unused)
+  { "folke/tokyonight.nvim", enabled = false },
 }
