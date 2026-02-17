@@ -1,0 +1,12 @@
+[credential "https://github.com"]
+	helper =
+	helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !gh auth git-credential
+
+[includeIf "gitdir:~/code/personal/"]
+	path = ~/.config/git/personal.gitconfig
+
+[includeIf "gitdir:~/code/work/"]
+	path = ~/.config/git/work.gitconfig

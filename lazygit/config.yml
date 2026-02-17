@@ -1,0 +1,48 @@
+gui:
+  nerdFontsVersion: "3"
+  showFileTree: true
+  expandFocusedSidePanel: true
+  mainPanelSplitMode: "flexible"
+  border: "rounded"
+  showRandomTip: false
+  showCommandLog: true
+  theme:
+    lightTheme: true
+    activeBorderColor:
+      - "#1e66f5"
+      - bold
+    inactiveBorderColor:
+      - "#6c6f85"
+    optionsTextColor:
+      - "#1e66f5"
+    selectedLineBgColor:
+      - "#ccd0da"
+    cherryPickedCommitBgColor:
+      - "#bcc0cc"
+    cherryPickedCommitFgColor:
+      - "#1e66f5"
+    unstagedChangesColor:
+      - "#d20f39"
+    defaultFgColor:
+      - "#4c4f69"
+    searchingActiveBorderColor:
+      - "#df8e1d"
+  authorColors:
+    "*": "#7287fd"
+git:
+  autoFetch: true
+  fetchAll: true
+  autoRefresh: true
+  autoForwardBranches: "onlyMainBranches"
+  mainBranches:
+    - master
+    - main
+  skipHookPrefix: "WIP"
+  commit:
+    autoWrapWidth: 72
+  log:
+    order: "topo-order"
+    showGraph: "always"
+  pagers:
+    - colorArg: always
+      pager: delta --light --paging=never --line-numbers

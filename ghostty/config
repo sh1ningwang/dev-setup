@@ -1,0 +1,8 @@
+theme = Catppuccin Latte
+font-family = JetBrainsMono Nerd Font
+font-size = 11
+
+gtk-titlebar = false
+macos-titlebar-style = hidden
+copy-on-select = clipboard
+right-click-action = paste
