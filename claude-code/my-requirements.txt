@@ -1,22 +1,108 @@
-i want to do something like this 
+i want to achieve the following goals. you may put all the skills i have under dev-setup/claude-code/skills, and rules under dev-setup/claude-code/rules 
 
 i want to have the following skills: 
 
 - analyze-functional-requirements
-  - when to invoke: whenever there's a need to come up with a detailed functional requirements based on a feature or issue description 
+  - when to invoke: whenever there is a need to come up with a detailed functional requirements based on a feature or issue description 
   - description: come up with a highly detailed functional requirements with clear epics and user stories definition and description
-- architect-technical-implementation 
-  - when to invoke: whenever there's a need to come up with a detailed technical architecture design 
-  - description: come up with a high-level techinical architecture design, describing the system modules design, API design, service interal logics, 
-- architect-technical-testing
-- implement-backend 
-- implement-frontend 
-- debug 
-- review-code 
-- review-security-risk 
-- review-functional-requirements
-- write-documentation
 
-i want to have the following rules
-- always use latest opus model for any kind of operations 
-- always try to spawn agent team (instead of using subagents) to do work, the team lead shall analyze what types of agents (roles) are needed and how many are required for each role. upon spawning the team, the team lead shall inject the corresponding skills (particular to this agent's role) required to its team member agents. all spawned agents must respect the roles and skills injected.
+- architect-technical-implementation 
+  - when to invoke: whenever there is a need to come up with a detailed technical architecture design 
+  - description: come up with a high-level techinical architecture design, describing the system modules design, API design, backend service interal logics design, UI/UX design. there are the following points to consider: always try to design microservices instead of mono app. always try to use newer modern reliable technologies instead of legacy ones. Backend designs shall always consider maintainablity and performance. always parameterize configurable values into config files and environment variables. Frontend designs shall always ensure user experience and the UI must be clean, easy to understand, smooth and modern. 
+
+- architect-technical-testing
+  - when to invoke: whenever there is a need to come up with a highly detailed testing specification
+  - description: come up with a highly detailed testing specification, covering details of all unit test, integration test, regression test and functional
+    requirements quality gates if there is any 
+
+- implement-backend 
+  - when to invoke: whenever there is a need to implement some backend work 
+  - description: implement backend work. focus on code reusability and maintainability. try to make use of interfaces and abstractions as much as possible so that backend codes are highly dynamically generalized. When we think of implementing a particular feature, not only think of this specific feature, we need to generalize it in a way such that in the future whenever there is a similar feature coming in, we could simply reuse the interfaces and abstractions and only focusing on the implementation under the hood. also, always follow a test driven development strategy, define all your test cases first before actually implementing the logics. 
+
+- implement-frontend 
+  - when to invoke: whenever there is a need to implement some frontend work 
+  - description: implement frontend work. focus on user experience
+
+- debug 
+  - when to invoke: whenever there is a need to debug some issue 
+  - description: find the root cause of issue and propose solutions. focus on the actual and real root cause of the issue and do not conclude before 99% sure that it is the real root cause. never propose fix for fixing something superficially, always understand why the issue happened and what is the real root cause. come up with a debug summary including root cause and proposed solutions. 
+    
+- review-code-quality
+  - when to invoke: whenever there is a need to check and review code quality 
+  - description: all files shall have < 500 lines of code. proper decoupling, test cases are passing, test case coverage must be > 80%, code builds, etc. come up with a code review summary including violations and proposed solutions. 
+
+- review-security-risk
+  - when to invoke: whenever there is a need to check and review potential security risks in the code
+  - description: analyze and try to find if there is any places in the current code implementation that could potentially cause security risks and vulnerabilities that may expose potential places for attackers. this review shall cover both code implementation as well as software package versions. come up with a security risk summary consisting of risks found and proposed solutions. 
+
+- review-performance
+  - when to invoke: whenever there is a need to check and review current code performance 
+  - description: analyze the current implementaiton and try to see if the current implementation will be sufficient for high concurrent user volume, high request volume and what could be the potential risks and performance bottle neck with the current implementation when request concurrency is too high, etc. come up with a summary including all places where performance could be improved or there is a bottle neck.
+
+- review-secrets-leaks
+  - when to invoke: whenever there is a need to check and review if there is any secrets, credentials, confidential information being leaked from the code 
+  - description: check if there is any secrets, credentials, confidential information / data being hard coded in the code or being logged in code. if any of secret information is found hardcoded in the code, they shall be moved to be read from config files and environment variables, if they are found logged in the code, they must be masked. come up with a leak summary and proposed solutions. this secret leak check and verification must be done using both claude code manual checks and gitleaks.
+
+- review-functional-requirements
+  - when to invoke: whenever there is a need to check and review if the implemented features are matching with the defined functional requirements 100%
+  - description: this review process is to ensure that whatever that has been implemented shall 100% match with the functional requirements and passing the quality gates defined if there is any 
+
+- write-documentation
+  - when to invoke: whenever there is a need to write documentation such as code documentation, spec documentation, etc. 
+  - description: write clean, detailed and understandable documentations accordingly, if it is for code documentation, write them directly in the code, if it is for other documentation such as architecture tech spec, test spec, functional spec, integration spec and no output path has been specified, you shall never self-decide to write documentation to other locations, you MUST ask user approvals. for specification markdown documentations, try to make use of tables and diagrams to illustrates concept.
+
+
+i want to have the following commands
+
+- ralph
+  - input: feature or issue brief description 
+  - descriptions: 
+    - spawns the following agent team with 12 agents: 
+      - role - business-analyst, skills - analyze-functional-requirements
+      - role - architect-implementaiton, skills - architect-technical-implementation 
+      - role - architect-testing, skills - architect-technical-testing
+      - role - backend-engineer, skills - implement-backend 
+      - role - frontend-engineer, skills - implement-frontend 
+      - role - debugger, skills - debug 
+      - role - reviewer-code-quality, skills - review-code-quality 
+      - role - reviewer-security-risk, skills - review-security-risk 
+      - role - reviewer-performance, skills - review-performance 
+      - role - reviewer-secrets-leaks, skills- review-secrets-leaks 
+      - role - reviewer-functional-requirements, skills - review-functional-requirements 
+      - role - doc-writer, skills - write-documentation 
+    - runs in ralph loop mode, ie. 
+      0. pre-setup: creates a folder at ~/.claude/ralph-sessions/yyyymmdd-hhmmss-<brief descriptions> which is the current ralph session path, spawn the agent team, record the current time in SGT, ask doc-writer to write <current ralph session path>/status.md, mark ralph loop started and starting time 
+      1. business analyst analyze my requirements, could be a feature or issue fix, ask doc-writer to write "Requirements.md" into <current ralph session path>, ask doc-writer to update status.md, ask doc-writer to update status.md, add new log stating functional requirements analysis started, completed timestamp, output path etc. 
+      2. architect-imeplementation come up with implementation design, ask doc-writer to write "Architecture.md" into <current ralph session path>, ask doc-writer to update status.md, ask doc-writer to update status.md, add new log stating implementation design started, completed timestamp, output path etc.
+      3. architect-testing come up with testing design, ask doc-writer to write "Testing.md" into <current ralph session path>, ask doc-writer to update status.md, add new log stating testing design started, completed timestamp, output path etc.
+      4. ralph round 1 starts. frontend-engineer and backend-engineer starts implementation based on ARCHITECTURE.md and TESTING.md in parallel, ask  doc-writer to update status.md, add new log stating frontend or backend implementation started, completed timestamp, etc.
+      5. reviewer-code-quality, reviewer-security-risk, reviewer-performance, reviewer-secrets-leaks, reviewer-functional-requirements starts reviewing the work done by frontend engineer and backend engineer, once finished, ask doc-writer to write the corresponding documents "Review-Summary-Code-Quality.md", "Review-Summary-Security-Risk.md", "Review-Summary-Performance.md", "Review-Summary-Secrets-Leaks.md", "Review-Summary-Functional-Requirements.md" under <current ralph session path>/round-<current round number, pad to two digits, ie. 1 -> 01, 2 -> 02, etc.>, if the round subfolder does not exist yet, create it. ask doc-writer to update status.md, add new log stating each of the review agent start and complete timestamp, output path etc. based on the content of those review summary, if there is any action items and issues to be addressed, let frontend-engineer and backend engineer know, basically goes back to step 4 and goes into the next round. continue this loop until everything written in all reviewers passed without any issues to be addressed.   
+      6. once everything is done, ask doc-writer to update status.md, append a brief summary of what has been completed. ralph loop complete timestamp.
+
+
+- commit
+  - input: N.A.
+  - descriptions: 
+    - detect if there is a currently active git project that claude code session is working on 
+    - if not detected, let user know that no git repo detected and end the process smoothly.
+    - if detected, check with user if the git repo <repo name>, branch <branch name> is correct 
+    - if user say no, ask user to provide the repo name and branch name, if the user provided repo and branch cannot be found within the currently active claude working directory, let user know that what they want is not within the current claude working directory and end the process smoothly. if the user provided git repo and branch name can be found, then proceed.
+    - if user say yes, proceed to next step 
+    - review the specified git repo and branch's current workspace,
+    - ensure no secrets, confidential information data leaks in the repo, must NOT commit them, if found report to user immediately.
+    - once all clean, or user asks you to explicitly skip those files (eg. probably just some local setting files for development and there are credentials inside), summarize the code changes into commits based on meaning of those changes, group changes that are for the same feature/bug fix into one commit, and give it a meaningful commit description, there could be multiple commits and you have to figure out the sequence and order of those commits to make sure after each commit, the corresponding code change is self-contained, project is buildable and runnable 
+    - once you have generated the commit plan, report to user with the plan details and ask for approvals to proceed. NEVER proceed without user approval 
+    - once user approved, you may proceed to run the actual git commit commands etc. note that this is still local, NEVER run git push etc. commands 
+    - report to user once completed process.
+
+
+
+i want to have the following critical rules
+- never self-decide to downgrade model or downgrade to subagents instead of agent team, that is not your concern.
+- always use latest opus model for all kinds of work 
+- always try to automatically invoke skills for simple tasks 
+- always try to spawn agent team (instead of using subagents) for complex tasks, the team lead shall analyze what types of agents (roles) are needed and how many are required for each role. upon spawning the team, the team lead shall inject the corresponding skills (particular to this agents role) required to its team member agents. all spawned agents must respect the roles and skills injected and must not do any other things not mentioned in their roles and skills injected. once completed, the whole agent team shall be automatically teared down 
+- among my custom skills, only implement-backend, implement-frontend and write-documentation has write access to my project directory, ie. implement backend and frontend writes code where write documentation writes docs or code docs, the rest such as debug, architect, review etc shall only produce outcome to the claude code console only, they will have to utilize write-documentation skill whenever they want to persist the output into my project directory. 
+
+
+i do NOT want to be bothered with keeping giving approvals to run abcde commands for my project, what can i do.
