@@ -1,4 +1,23 @@
 {
-  "permissions": {},
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "Grep",
+      "Glob",
+      "WebFetch",
+      "WebSearch",
+      "Task",
+      "Skill"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(sudo rm -rf *)",
+      "Bash(git push --force *)"
+    ]
+  },
   "env": {}
 }
