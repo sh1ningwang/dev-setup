@@ -1,35 +1,159 @@
 # dev-setup
 
-Dev environment config files.
+Personal dev environment config files, managed via a single `link` script that symlinks (or generates) configs to their expected paths.
+
+## Quick Start
+
+```bash
+# Link all packages
+./link
+
+# Link specific packages only
+./link claude-code ghostty
+
+# Check link status
+./link check
+
+# Unlink all
+./link unlink
+```
 
 ## Components
 
-### neovim
+| Package | Link Mode | Description |
+|---------|-----------|-------------|
+| [claude-code](#claude-code) | custom | Claude Code CLI — settings, skills, and rules |
+| [flameshot](#flameshot) | custom | Screenshot tool — template-based config + autostart |
+| [git](#git) | custom | Git config with conditional personal/work profiles |
+| [ghostty](#ghostty) | file | Terminal emulator with Catppuccin Latte theme |
+| [lazygit](#lazygit) | file | Git TUI with Catppuccin Latte colors and delta pager |
+| [neovim](#neovim) | dir | Neovim with LazyVim and Catppuccin Latte colorscheme |
+| [rime](#rime) | glob | Rime input method engine config (via fcitx5) |
 
-Neovim with LazyVim starter config and Catppuccin Latte colorscheme.
+---
 
-Config path: `~/.config/nvim`
+### claude-code
 
-### lazygit
+Claude Code CLI settings, custom skills, and rules.
 
-Git TUI with Nerd Font icons and light theme.
+| Item | Target Path |
+|------|-------------|
+| `settings.json` | `~/.claude/settings.json` |
+| `skills/` | `~/.claude/skills/` |
+| `rules/` | `~/.claude/rules/` |
 
-Config path: `~/.config/lazygit/config.yml`
+**Settings** — permission allowlist for core tools (Bash, Read, Write, Edit, etc.) and deny rules for destructive commands (`rm -rf /`, `git push --force`).
+
+**Rules** — critical rules for model usage, agent team orchestration, and write access restrictions.
+
+**Skills** (15 custom skills):
+
+| Category | Skill | Description |
+|----------|-------|-------------|
+| Analysis | `analyze-functional-requirements` | Detailed functional requirements with epics and user stories |
+| Architecture | `architect-technical-implementation` | High-level system, API, backend, and UI/UX design |
+| Architecture | `architect-technical-testing` | Testing specification — unit, integration, regression, quality gates |
+| Implementation | `implement-backend` | Backend code — interfaces, abstractions, test-driven development |
+| Implementation | `implement-frontend` | Frontend code — UX-focused, clean modern UI |
+| Debugging | `debug` | Root cause analysis — never concludes before 99% certainty |
+| Review | `review-code-quality` | File size, decoupling, test coverage >80%, build verification |
+| Review | `review-security-risk` | Security vulnerabilities in code and package versions |
+| Review | `review-performance` | Performance bottlenecks under high concurrency |
+| Review | `review-secrets-leaks` | Hardcoded secrets and credential leak detection (manual + gitleaks) |
+| Review | `review-functional-requirements` | Verify implementation matches functional requirements 100% |
+| Documentation | `write-documentation` | Code docs, spec docs — tables and diagrams |
+| Workflow | `ralph` | 12-agent team: analyze → architect → implement → review → iterate |
+| Workflow | `commit` | Smart git commit — secrets check, grouped commits, user approval |
+
+---
+
+### flameshot
+
+Screenshot tool with template-based configuration and autostart support.
+
+| Item | Target Path |
+|------|-------------|
+| `flameshot.ini` (generated) | `~/.config/flameshot/flameshot.ini` |
+| `flameshot-autostart.desktop` | `~/.config/autostart/flameshot-autostart.desktop` (Linux) |
+| `org.flameshot.Flameshot.plist` | `~/Library/LaunchAgents/org.flameshot.Flameshot.plist` (macOS) |
+
+The config uses a `__SAVE_PATH__` template placeholder that gets replaced with `~/Pictures/screenshots` at link time — this avoids hardcoding machine-specific paths.
+
+---
+
+### git
+
+Git config with `gh` credential helper and conditional profile includes.
+
+| Item | Target Path |
+|------|-------------|
+| `config` | `~/.gitconfig` |
+| `personal.gitconfig` | `~/.config/git/personal.gitconfig` |
+| `work.gitconfig` | `~/.config/git/work.gitconfig` |
+
+Profiles are loaded conditionally based on repo path:
+- `~/code/personal/` → `personal.gitconfig`
+- `~/code/work/` → `work.gitconfig`
+
+---
 
 ### ghostty
 
 Terminal emulator with Catppuccin Latte theme and JetBrains Mono Nerd Font.
 
-Config path: `~/.config/ghostty/config`
+| Item | Target Path |
+|------|-------------|
+| `config` | `~/.config/ghostty/config` (Linux) |
+| `config` | `~/Library/Application Support/com.mitchellh.ghostty/config` (macOS) |
+
+---
+
+### lazygit
+
+Git TUI with Catppuccin Latte color scheme, Nerd Font icons, and delta as the diff pager.
+
+| Item | Target Path |
+|------|-------------|
+| `config.yml` | `~/.config/lazygit/config.yml` |
+
+---
+
+### neovim
+
+Neovim with LazyVim starter config and Catppuccin Latte colorscheme.
+
+| Item | Target Path |
+|------|-------------|
+| `neovim/` (dir) | `~/.config/nvim/` |
+
+---
 
 ### rime
 
-Rime input method engine config (via fcitx5).
+Rime input method engine config (via fcitx5). Luna Pinyin with custom settings.
 
-Config path: `~/.local/share/fcitx5/rime`
+| Item | Target Path |
+|------|-------------|
+| `*.yaml` | `~/.local/share/fcitx5/rime/` |
 
-### claude-code
+## Link Script
 
-Claude Code CLI settings.
+The `link` script supports three link modes:
 
-Config path: `~/.claude/settings.json`
+| Mode | Behavior |
+|------|----------|
+| `file` | Symlink a single file |
+| `dir` | Symlink an entire directory |
+| `glob` | Symlink each matching file individually |
+| `custom` | Package-specific logic (e.g., template generation, multi-target linking) |
+
+Existing files are automatically backed up to `~/.config-backups/<package>/` before being replaced.
+
+### Commands
+
+```bash
+./link              # Link all packages
+./link <pkg> ...    # Link specific packages
+./link check        # Show link status for all packages
+./link unlink       # Remove all managed symlinks (restores backups)
+```
