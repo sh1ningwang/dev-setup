@@ -7,7 +7,6 @@ gui:
   showRandomTip: false
   showCommandLog: true
   theme:
-    lightTheme: true
     activeBorderColor:
       - "#1e66f5"
       - bold

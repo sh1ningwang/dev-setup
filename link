@@ -16,15 +16,11 @@ OS="$(uname -s)"
 
 declare -a PACKAGES=(claude-code flameshot git ghostty lazygit neovim rime)
 
-pkg_source_claude_code="settings.json"
-pkg_mode_claude_code="file"
-pkg_target_claude_code="$HOME/.claude/settings.json"
+pkg_mode_claude_code="custom"
 
 pkg_mode_git="custom"
 
-pkg_source_flameshot="flameshot.ini"
-pkg_mode_flameshot="file"
-pkg_target_flameshot="$HOME/.config/flameshot/flameshot.ini"
+pkg_mode_flameshot="custom"
 
 pkg_source_ghostty="config"
 pkg_mode_ghostty="file"
@@ -174,6 +170,52 @@ link_glob() {
     done
 }
 
+link_custom_claude_code() {
+    local pkg="claude-code"
+
+    # settings.json
+    local src="$REPO_DIR/claude-code/settings.json"
+    local target="$HOME/.claude/settings.json"
+    if is_correct_link "$target" "$src"; then
+        echo "  ✓ $target → already linked"
+    else
+        if [[ -e "$target" || -L "$target" ]]; then
+            backup_path "$pkg" "$target"
+            echo "  ↪ backed up $target"
+        fi
+        make_link "$src" "$target"
+        echo "  ✓ $target → $src"
+    fi
+
+    # skills directory
+    src="$REPO_DIR/claude-code/skills"
+    target="$HOME/.claude/skills"
+    if is_correct_link "$target" "$src"; then
+        echo "  ✓ $target → already linked"
+    else
+        if [[ -e "$target" || -L "$target" ]]; then
+            backup_path "$pkg" "$target"
+            echo "  ↪ backed up $target"
+        fi
+        make_link "$src" "$target"
+        echo "  ✓ $target → $src"
+    fi
+
+    # rules directory
+    src="$REPO_DIR/claude-code/rules"
+    target="$HOME/.claude/rules"
+    if is_correct_link "$target" "$src"; then
+        echo "  ✓ $target → already linked"
+    else
+        if [[ -e "$target" || -L "$target" ]]; then
+            backup_path "$pkg" "$target"
+            echo "  ↪ backed up $target"
+        fi
+        make_link "$src" "$target"
+        echo "  ✓ $target → $src"
+    fi
+}
+
 link_custom_git() {
     local pkg="git"
 
@@ -208,6 +250,45 @@ link_custom_git() {
         make_link "$src" "$target"
         echo "  ✓ $target → $src"
     done
+}
+
+link_custom_flameshot() {
+    local pkg="flameshot"
+    local save_path="$HOME/Pictures/screenshots"
+
+    # Ensure screenshots directory exists
+    mkdir -p "$save_path"
+
+    # Config file (generated from template — savePath varies per machine)
+    local template="$REPO_DIR/flameshot/flameshot.ini"
+    local target="$HOME/.config/flameshot/flameshot.ini"
+    local src
+    mkdir -p "$(dirname "$target")"
+    if [[ -e "$target" || -L "$target" ]]; then
+        backup_path "$pkg" "$target"
+        echo "  ↪ backed up $target"
+    fi
+    sed "s|__SAVE_PATH__|$save_path|g" "$template" > "$target"
+    echo "  ✓ $target (generated from template)"
+
+    # Autostart: .desktop on Linux, LaunchAgent on macOS
+    if [[ "$OS" == "Darwin" ]]; then
+        src="$REPO_DIR/flameshot/org.flameshot.Flameshot.plist"
+        target="$HOME/Library/LaunchAgents/org.flameshot.Flameshot.plist"
+    else
+        src="$REPO_DIR/flameshot/flameshot-autostart.desktop"
+        target="$HOME/.config/autostart/flameshot-autostart.desktop"
+    fi
+    if is_correct_link "$target" "$src"; then
+        echo "  ✓ $target → already linked"
+    else
+        if [[ -e "$target" || -L "$target" ]]; then
+            backup_path "$pkg" "$target"
+            echo "  ↪ backed up $target"
+        fi
+        make_link "$src" "$target"
+        echo "  ✓ $target → $src"
+    fi
 }
 
 link_package() {
@@ -336,6 +417,32 @@ check_glob() {
     done
 }
 
+check_custom_claude_code() {
+    local src="$REPO_DIR/claude-code/settings.json"
+    local target="$HOME/.claude/settings.json"
+    if is_correct_link "$target" "$src"; then
+        echo "  [x] $target"
+    else
+        echo "  [ ] $target"
+    fi
+
+    src="$REPO_DIR/claude-code/skills"
+    target="$HOME/.claude/skills"
+    if is_correct_link "$target" "$src"; then
+        echo "  [x] $target"
+    else
+        echo "  [ ] $target"
+    fi
+
+    src="$REPO_DIR/claude-code/rules"
+    target="$HOME/.claude/rules"
+    if is_correct_link "$target" "$src"; then
+        echo "  [x] $target"
+    else
+        echo "  [ ] $target"
+    fi
+}
+
 check_custom_git() {
     local src="$REPO_DIR/git/config"
     local target="$HOME/.gitconfig"
@@ -356,6 +463,31 @@ check_custom_git() {
             echo "  [ ] $target"
         fi
     done
+}
+
+check_custom_flameshot() {
+    # Config is generated (not symlinked), so check if it exists and has correct savePath
+    local target="$HOME/.config/flameshot/flameshot.ini"
+    local expected_path="$HOME/Pictures/screenshots"
+    if [[ -f "$target" ]] && grep -q "savePath=$expected_path" "$target" 2>/dev/null; then
+        echo "  [x] $target (generated)"
+    else
+        echo "  [ ] $target (generated)"
+    fi
+
+    # Autostart: platform-specific
+    if [[ "$OS" == "Darwin" ]]; then
+        src="$REPO_DIR/flameshot/org.flameshot.Flameshot.plist"
+        target="$HOME/Library/LaunchAgents/org.flameshot.Flameshot.plist"
+    else
+        src="$REPO_DIR/flameshot/flameshot-autostart.desktop"
+        target="$HOME/.config/autostart/flameshot-autostart.desktop"
+    fi
+    if is_correct_link "$target" "$src"; then
+        echo "  [x] $target"
+    else
+        echo "  [ ] $target"
+    fi
 }
 
 check_package() {
