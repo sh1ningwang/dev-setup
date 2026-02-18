@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Flameshot
+Comment=Screenshot tool
+Exec=/usr/bin/flameshot
+Icon=flameshot
+Terminal=false
+Type=Application
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
