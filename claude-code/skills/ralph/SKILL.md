@@ -116,6 +116,7 @@ All other agents (analysts, architects, debugger, reviewers) are **read-only**. 
    - Ralph loop status: **COMPLETED**
    - Completion time (SGT).
 2. Report to the user that the ralph loop is complete and provide the session path.
+3. **Tear down the team**: Send a `shutdown_request` via `SendMessage` to every teammate. Wait for all shutdown responses, then call `TeamDelete` to clean up team resources.
 
 ## Important Notes
 
