@@ -10,11 +10,17 @@ These rules are non-negotiable and must always be respected.
 ## Agent Teams vs Subagents
 
 - For **simple tasks**: Automatically invoke the relevant skill directly without spawning agents.
-- For **complex tasks**: Always spawn an **agent team** using the Task tool, not ad-hoc subagents.
+- For **complex tasks**: Always use the **real agent team workflow**, never ad-hoc subagents (bare `Task` tool calls without a team). The workflow is:
+  1. **Create the team** using `TeamCreate` with a descriptive `team_name`.
+  2. **Create tasks** using `TaskCreate` for each piece of work.
+  3. **Spawn teammates** using the `Task` tool with both `team_name` and `name` parameters so they join the team.
+  4. **Assign tasks** using `TaskUpdate` with `owner` set to the teammate's name.
+  5. **Coordinate** via `SendMessage` — never assume teammates can hear plain text output.
+  6. **Tear down** when complete: send `shutdown_request` to all teammates via `SendMessage`, then call `TeamDelete`.
   - The team lead must analyze what types of agent roles are needed and how many agents per role.
   - Upon spawning, the team lead must inject the corresponding skill instructions (matching each agent's role) into each agent's prompt.
   - All spawned agents must strictly respect their assigned roles and injected skills. They must NOT perform actions outside their role.
-  - Once the task is completed, the entire agent team is automatically torn down.
+  - **NEVER** fall back to spawning bare `Task` subagents for complex tasks. If `TeamCreate` is available, use it.
 
 ## Write Access Restrictions
 
