@@ -1,6 +1,6 @@
 theme = Catppuccin Latte
 font-family = JetBrainsMono Nerd Font
-font-size = 11
+font-size = 14
 
 gtk-titlebar = false
 macos-titlebar-style = hidden
