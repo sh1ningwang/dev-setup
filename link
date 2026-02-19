@@ -214,6 +214,24 @@ link_custom_claude_code() {
         make_link "$src" "$target"
         echo "  ✓ $target → $src"
     fi
+
+    # ccstatusline settings
+    src="$REPO_DIR/claude-code/ccstatusline/settings.json"
+    target="$HOME/.config/ccstatusline/settings.json"
+    if [[ -f "$src" ]]; then
+        if is_correct_link "$target" "$src"; then
+            echo "  ✓ $target → already linked"
+        else
+            if [[ -e "$target" || -L "$target" ]]; then
+                backup_path "$pkg" "$target"
+                echo "  ↪ backed up $target"
+            fi
+            make_link "$src" "$target"
+            echo "  ✓ $target → $src"
+        fi
+    else
+        echo "  ⊘ $src not found — run 'bunx ccstatusline@latest' to generate, then copy here"
+    fi
 }
 
 link_custom_git() {
@@ -437,6 +455,16 @@ check_custom_claude_code() {
     src="$REPO_DIR/claude-code/rules"
     target="$HOME/.claude/rules"
     if is_correct_link "$target" "$src"; then
+        echo "  [x] $target"
+    else
+        echo "  [ ] $target"
+    fi
+
+    src="$REPO_DIR/claude-code/ccstatusline/settings.json"
+    target="$HOME/.config/ccstatusline/settings.json"
+    if [[ ! -f "$src" ]]; then
+        echo "  [-] $target (source not yet created)"
+    elif is_correct_link "$target" "$src"; then
         echo "  [x] $target"
     else
         echo "  [ ] $target"
