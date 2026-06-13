@@ -27,7 +27,7 @@ When invoked, regenerate this agent's global instruction file from the canonical
 
 1. Determine your own agent type (for example Claude Code, OpenCode, Codex, etc.).
 2. Format the combined instruction file to fit your agent type's expected global instruction format and location.
-3. Save it as the **global** instruction/configuration file for your agent type.
+3. Save it as the **global instruction file** for your agent type (e.g. `AGENTS.md` for OpenCode, `CLAUDE.md` for Claude Code).
 4. If a global instruction file already exists for your agent type, you **may overwrite** it.
 5. Ensure the generated file is valid and well-formed for your agent type.
 
