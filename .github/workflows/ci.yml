@@ -2,6 +2,8 @@ name: ci
 on:
   pull_request_target:
     branches: [develop, develop-auto]
+  push:
+    branches: [develop-auto]
 jobs:
   verify:
     runs-on: ubuntu-latest
