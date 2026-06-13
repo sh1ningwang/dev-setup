@@ -1,0 +1,56 @@
+{
+  // OpenCode configuration
+  // Schema reference enables editor autocompletion and validation.
+  "$schema": "https://opencode.ai/config.json",
+
+  // Default model in "provider/model" form. "zai" is OpenCode's built-in
+  // provider id for the official Z.AI endpoint. Authenticate with the GLM
+  // Coding Plan API key via `opencode auth login` (select Z.AI / GLM Coding
+  // Plan) or the ZAI_API_KEY env var.
+  "model": "zai/glm-4.7",
+
+  // Lightweight model for side tasks (title generation, summaries).
+  "small_model": "zai/glm-4.7",
+
+  // Bypass mode: allow all tool actions (edit, bash, webfetch, etc.)
+  // without prompting for approval. This disables the per-action
+  // approval safety prompts — only use in trusted environments.
+  "permission": "allow",
+
+  // Automatically compact the conversation when the context window fills.
+  "compaction": {
+    "auto": true
+  },
+
+  // Session sharing fully disabled (also supersedes the deprecated
+  // autoshare flag, which is set to false for completeness).
+  "share": "disabled",
+  "autoshare": false,
+
+  // Keep OpenCode up to date automatically.
+  "autoupdate": true,
+
+  // Enable built-in code formatters.
+  "formatter": true,
+
+  // Per-model overrides for the built-in Z.AI provider. GLM uses an
+  // Anthropic-style thinking toggle (type enabled/disabled) rather than a
+  // graded reasoning-effort dial, so reasoning is turned on per model here.
+  // Note: GLM 5.2 does not exist as of this writing — latest is GLM 5.1.
+  "provider": {
+    "zai": {
+      "models": {
+        "glm-4.7": {
+          "options": {
+            "thinking": { "type": "enabled" }
+          }
+        },
+        "glm-5.1": {
+          "options": {
+            "thinking": { "type": "enabled" }
+          }
+        }
+      }
+    }
+  }
+}
