@@ -1,5 +1,18 @@
-- Never commit secrets, API keys or credentials. Never hardcode them and use environment variables or configs instead.
-- Never run commands that change global system or environment state without flagging it.
-- Never log confidential information or sensitive data in the log as plain text.
-- Never show confidential information, secrets, API keys or credentials as plain text on any user facing UI.
-- Always bear proper permission management in mind and design/implement proper access control on system resources.
+- Never commit secrets, API keys, tokens, passwords, or credentials of any kind to the repository.
+  - Never hardcode secrets in source code, config files, tests, or fixtures.
+  - Store secrets in environment variables or a dedicated secrets/config mechanism, and load them at runtime.
+  - Keep secret files out of version control (for example via `.gitignore`) and provide non-secret example/template files instead.
+  - If a secret is ever committed by accident, treat it as compromised: rotate it and remove it from history.
+- Never run commands that change global system or environment state without first flagging it to the user.
+  - This includes global package installs, modifying system config, changing environment variables, altering files outside the project, or anything affecting other projects or the machine as a whole.
+  - Call out exactly what will change and why before running it, and prefer project-local, reversible alternatives where possible.
+- Never write confidential or sensitive data to logs as plain text.
+  - Do NOT log secrets, credentials, tokens, personal/identifying data, or other sensitive payloads in clear text.
+  - Mask, redact, or omit sensitive values; log a safe identifier or a hash instead of the raw value when something must be referenced.
+- Never display confidential information as plain text on any user-facing UI.
+  - Do NOT render secrets, API keys, tokens, or credentials in clear text in any UI, response, error message, or screen.
+  - Mask them (for example show only the last few characters) and reveal full values only through an explicit, authorized, deliberate action.
+- Always design and implement proper permission management and access control on system resources.
+  - Enforce least privilege: grant only the minimum access each user, role, service, or component needs.
+  - Apply access control at every protected resource (data, files, APIs, operations) and verify authorization on every access, not just at the entry point.
+  - Default to deny: deny access unless it is explicitly permitted.

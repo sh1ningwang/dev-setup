@@ -1,19 +1,49 @@
-- Abstraction and generalizability is ALWAYS crucial and all the code you write shall ensure proper abstraction is implemented so that it could generalize well in the future. Always separate the core skeleton engine and the actual business logic. The business logic shall be implemented in a "plug and play" and "switch to another" way so that we only plug a business logic implementation into an abstraction, and the abstraction serves as the interface which other components shall interact with.
-- No large code files (more than 500 lines) is allowed. When a file exceeds 500 lines, refactor and decompose it.
-- Always bear logging and traceability in your mind. All the code you write shall have proper logging with proper logging level to provide clear and detailed information for debugging and tracing.
-- All code you write shall have proper comments. Comment the why, not the what. Don't narrate what the code obviously does.
-- Keep existing comments accurate if you change the code around them.
-- Match the style, patterns and conventions already present in the file and project to ensure consistency.
-- Write code that's clear over code that's clever. Optimize for the next person reading it.
-- Handle errors explicitly. Never swallow exceptions or ignore failure cases.
-- Always validate input at boundaries (user input, API responses, external data, etc.).
-- No dead code is allowed. No commented-out blocks left behind. No unused imports or variables.
-- Don't add a new dependency for something the language/standard library or existing dependencies already do well.
-- Don't write your own version of an existing, well-tested, community-well-supported, well-known 3rd party library. Just reuse them.
-- Before adding a library, prefer well-maintained, widely used options.
-- When you change a behavior, you must update or add tests for it.
-- Don't delete or weaken a test to make it pass. Fix the underlying issue.
-- Run the relevant tests/linter before telling me something is done.
-- Tests must cover both successful and failure cases at all times.
-- Test coverage must be at least 80%.
-- Write maintainable, generalizable code.
+- Treat abstraction and generalizability as a first-class requirement in everything you write, never an afterthought.
+  - Separate the core skeleton/engine (the stable, reusable machinery) from the actual business logic (the specific, changeable behaviour).
+  - Implement business logic in a "plug and play" and "switch to another" way: each implementation plugs into a well-defined abstraction, and other components interact only through that abstraction, never with the concrete implementation directly.
+  - Design the abstraction as the contract/interface so that swapping one business-logic implementation for another requires no change to the components that depend on it.
+  - Favour dependency injection and interface boundaries so implementations can be replaced or extended without rewriting callers.
+- Keep every source file under 500 lines.
+  - No file may exceed 500 lines.
+  - When a file approaches or crosses 500 lines, refactor and decompose it into smaller, cohesive modules with clear responsibilities.
+- Build in logging and traceability as you write code, not later.
+  - Add logging throughout so behaviour can be debugged and traced in production.
+  - Use the correct level for each message (for example debug for diagnostics, info for normal milestones, warning for recoverable anomalies, error for failures).
+  - Make log messages clear and detailed enough to reconstruct what happened, including relevant identifiers and context — but never sensitive data (see security rules).
+- Comment the why, not the what.
+  - Explain intent, constraints, trade-offs, and non-obvious decisions.
+  - Do NOT narrate what the code plainly does; redundant "increment i" style comments are noise.
+- Keep existing comments accurate.
+  - Whenever you change code, update any nearby comments so they still describe the code correctly, and delete comments that no longer apply.
+- Match the existing style, patterns, and conventions of the file and the wider project.
+  - Follow the surrounding naming, formatting, error-handling, and architectural patterns so new code is indistinguishable in style from what is already there.
+  - Do NOT introduce a competing style or pattern when a project convention already exists.
+- Prefer clear code over clever code.
+  - Optimize for the next person who reads it; readability beats brevity and cleverness.
+  - Avoid obscure tricks, deep nesting, and dense one-liners when a straightforward form is clearer.
+- Handle every error explicitly.
+  - Never swallow exceptions, never catch-and-ignore, and never silently discard a failure case.
+  - Fail loudly, log the failure with context, and propagate or handle it deliberately.
+- Validate input at every boundary.
+  - Validate and sanitize all data crossing a trust boundary: user input, API responses, file/network/external data, and inter-service messages.
+  - Reject or safely handle malformed input rather than assuming it is well-formed.
+- Leave no dead code behind.
+  - No unreachable code, no commented-out blocks, no unused imports, variables, functions, or files.
+  - If something is not used, remove it rather than leaving it "just in case".
+- Do not add a dependency for something already well covered.
+  - If the language, its standard library, or an existing project dependency already does the job well, use that instead of pulling in something new.
+- Do not reinvent well-established libraries.
+  - Do NOT hand-roll your own version of an existing, well-tested, widely supported, well-known third-party library; reuse the proven library instead.
+- Choose new dependencies carefully when one is genuinely needed.
+  - Prefer well-maintained, widely adopted, actively supported options with healthy communities and good security track records.
+- Update or add tests whenever you change behaviour.
+  - Any change to behaviour MUST be accompanied by new or updated tests that cover the new behaviour.
+- Never weaken tests to make them pass.
+  - Do NOT delete, skip, or loosen a test just to get a green result; fix the underlying code or the genuinely outdated expectation instead.
+- Run the relevant tests and linter before reporting work as done.
+  - Do NOT claim something is complete until you have actually run the applicable tests and linters and seen them pass.
+- Cover both success and failure paths in tests.
+  - Every tested unit must have tests for the successful case AND for the failure/error/edge cases, at all times.
+- Maintain at least 80% test coverage.
+  - Keep test coverage at 80% or higher; if a change drops coverage below that, add tests to bring it back up.
+- Write maintainable, generalizable code as the default standard for all work.

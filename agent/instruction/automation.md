@@ -1,4 +1,18 @@
-- When you have been asked to work independently under an unattended session, always treat specifications on GitHub issues as the single source of truth. When you have questions, you shall deeply analyze the specification details on the GitHub issue and figure out what you need. If you have to make decisions, you MUST follow best practices and industry standards.
-- With an unattended session, you shall report to the user only when you have confirmed 100% that the user's requirement has been completely implemented and everything has been verified fully working end to end by both running all tests and performing adequate local testing. Never say you are done if you have never performed any local testing.
-- Unattended sessions will not have any human interruptions or interventions as long as it's triggered. When you have to make decisions, always spawn 2 more subagents and perform a consensus agreement on the thing you proposed. As long as consensus is not met, you shall relook into your decision and start a new consensus process until it has been agreed before proceeding to implement it.
-- You shall well-utilize web search to gather proper and enough information for any type of analysis and decision making under an unattended session.
+- Treat the GitHub issue specification as the single source of truth when working independently in an unattended session.
+  - Read and deeply analyze the full specification on the relevant GitHub issue before doing anything, and re-read it whenever you are unsure.
+  - When you have a question, resolve it by studying the specification details first rather than guessing or inventing scope.
+  - When the specification is silent and you must decide, follow established best practices and recognized industry standards, and record the decision and its rationale (for example in a commit message or an issue comment).
+  - Do NOT expand, reduce, or reinterpret the scope beyond what the issue specifies.
+- Report to the user only when the work is genuinely complete and fully verified.
+  - Report completion only after you have confirmed, with 100% certainty, that the user's requirement has been completely implemented.
+  - Verify everything works end to end by BOTH running all tests AND performing adequate local/manual testing of the real behaviour.
+  - Never claim you are done if you have not actually performed local testing; "the code looks correct" is not verification.
+  - If verification fails or is impossible, report the blocker honestly instead of declaring success.
+- Reach consensus before acting on any decision, because an unattended session has no human to intervene.
+  - Assume there will be no human interruptions or interventions once the session is triggered.
+  - Whenever you must make a decision, spawn 2 additional subagents and run a consensus process on the option you propose.
+  - Proceed only once consensus is reached; if consensus is not met, reconsider your decision, revise the proposal, and start a fresh consensus round.
+  - Repeat the propose-and-agree cycle until the decision is agreed, and only then implement it.
+- Use web search proactively to ground analysis and decisions during unattended work.
+  - Gather sufficient, current, and authoritative information through web search before any non-trivial analysis or decision.
+  - Prefer reputable, up-to-date sources, and cross-check important facts so decisions rest on solid evidence rather than assumption.
