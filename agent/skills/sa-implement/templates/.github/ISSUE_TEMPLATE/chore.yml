@@ -1,0 +1,103 @@
+name: "Chore"
+description: "Maintenance, internal cleanup, or a time-boxed investigation — specified to implementation-ready detail."
+title: "chore: <concise summary>"
+# Default labels applied at filing time. See .github/auto/labels.json.
+# Defaults to type:chore. If you pick Kind = spike below, relabel the issue
+# type:chore -> type:spike after filing (forms cannot apply a conditional label).
+labels: ["type:chore", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for maintenance work (deps, config, internal cleanup, refactors,
+        docs) or a time-boxed investigation (spike). A spike's deliverable is
+        **findings**, not shipped behavior — post them as a comment on the issue.
+        The Definition of Done gates the merge; every verifiable item must be
+        verified locally before anyone claims this done.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: "Kind"
+      description: "Spike => after filing, swap the label type:chore -> type:spike."
+      options:
+        - "chore"
+        - "spike"
+    validations:
+      required: true
+  - type: textarea
+    id: background
+    attributes:
+      label: "Background"
+      description: "Current state and why this maintenance/investigation is needed now: drift, debt, risk, or the open question. Link related issues/PRs/docs."
+      placeholder: "Dependency X is 3 majors behind; CI warns ...; we do not know whether ..."
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: "Purpose"
+      description: "The outcome this work buys (stability, speed, clarity, a decision). For a spike: the question that must be answered and what the answer unblocks."
+    validations:
+      required: true
+  - type: textarea
+    id: affected-files
+    attributes:
+      label: "Affected Files"
+      description: "Every file to be created, modified, or deleted — repo-relative paths, one per line, each annotated (new/modify/delete). For a spike: the files/areas to investigate."
+      value: |
+        - `path/to/file.ext` — modify: <what changes here>
+    validations:
+      required: true
+  - type: textarea
+    id: implementation-instructions
+    attributes:
+      label: "Implementation Instructions"
+      description: "Ordered steps detailed enough that someone with NO other context executes this correctly. Chore: exact changes and how to validate no behavior changed. Spike: the investigation plan, the time box, and the form of the findings."
+      value: |
+        1.
+        2.
+
+        **Validation that nothing else changed (chore) / time box + findings format (spike):**
+
+        **Constraints / non-goals:**
+    validations:
+      required: true
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: "Definition of Done"
+      description: "The verification checklist that MUST be performed before anyone (human or agent) claims this issue done. Every verifiable item must be exercised and verified LOCALLY — never checked off on faith."
+      value: |
+        - [ ] Every step in Implementation Instructions executed (spike: findings posted as an issue comment)
+        - [ ] No behavior change unless explicitly stated — verified locally (build/tests/smoke run, not assumed)
+        - [ ] Full test suite run locally and green (if code changed)
+        - [ ] gitleaks clean; conventional, atomic, buildable-per-commit
+        - [ ] No `Co-Authored-By` lines in any commit
+        - [ ] PR targets `develop-auto`; CI 100% green (if code changed)
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      description: "P0 highest. Default P2."
+      options:
+        - "P0"
+        - "P1"
+        - "P2"
+        - "P3"
+      default: 2
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: "Size"
+      description: "Informational scope hint (S/M/L/XL); the same consensus protocol runs for every size. Leave blank if unsure (treated as L)."
+      options:
+        - "S"
+        - "M"
+        - "L"
+        - "XL"
+    validations:
+      required: true

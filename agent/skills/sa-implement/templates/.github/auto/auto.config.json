@@ -1,0 +1,76 @@
+{
+  "$comment": [
+    "Per-repo /auto configuration. Committed to the repo and read at runtime from",
+    ".github/auto/auto.config.json (AUTO_CONFIG_PATH in lib/constants.sh).",
+    "EVERY value here is OPTIONAL and overrides a built-in default from",
+    "lib/constants.sh; omit a key to keep its default. This file MUST NOT contain",
+    "secrets or tokens (gitleaks scans it). 'schemaVersion' must equal",
+    "AUTO_SCHEMA_VERSION (currently 1).",
+    "",
+    "Hard, non-overridable invariants are NOT configurable here and are intentionally",
+    "absent: base branch is always develop-auto, force-push is always forbidden,",
+    "Co-Authored-By is always rejected, squash is the merge method, and the green",
+    "floor (non-empty required-check set) is always enforced."
+  ],
+  "schemaVersion": 1,
+
+  "account": {
+    "$comment": "OPTIONAL pin for the expected gh login. Default (empty) = the engine follows whatever account is ACTIVE in the installing user's local gh CLI — the normal mode. When set, preflight hard-asserts the active login matches and aborts otherwise; the engine never runs `gh auth switch` itself.",
+    "ghAccount": ""
+  },
+
+  "concurrency": {
+    "$comment": "Default number of issues worked in parallel (each its own lease+worktree+branch+PR). Overrides AUTO_CONCURRENCY_DEFAULT=1. --concurrency on the CLI overrides this.",
+    "default": 1
+  },
+
+  "rounds": {
+    "$comment": "Per-size review-round overrides. Each is capped at the hard ceiling 5 (AUTO_ROUNDS_CEILING) regardless of this value. Defaults: S=1, M=2, L=3, XL=3.",
+    "S": 1,
+    "M": 2,
+    "L": 3,
+    "XL": 3
+  },
+
+  "escalations": {
+    "$comment": "Run-wide ceiling on escalation chains; overrides MAX_ESCALATIONS=5. The run hard-stops when exceeded.",
+    "max": 5
+  },
+
+  "buildCheck": {
+    "$comment": [
+      "Fast buildable-per-commit gate run by bin/build-check.sh before finalizing",
+      "each commit (NOT the authoritative PR CI). 'enabled':false skips it with a WARN.",
+      "'commands' (a non-empty array) FULLY REPLACES auto-detection — each runs in",
+      "order and any non-zero exit rejects the commit. Omit (or leave empty) to use",
+      "built-in ecosystem auto-detection: node (package.json) -> python (pytest) ->",
+      "go (go.mod) -> make (Makefile with a 'check' target). Keep these FAST — seconds."
+    ],
+    "enabled": true,
+    "commands": []
+  },
+
+  "parity": {
+    "$comment": [
+      "CI-parity controls (ci-parity-check.sh). Workflows whose FIRST LINE is the",
+      "exclusionMarker are auto-infrastructure and ignored on BOTH branches (the",
+      "exclusion set must be symmetric across develop and develop-auto).",
+      "excludeWorkflows lists basenames excluded in addition to the marker."
+    ],
+    "exclusionMarker": "# auto:exclude-from-parity",
+    "excludeWorkflows": ["auto-base-guard.yml"]
+  },
+
+  "checks": {
+    "$comment": "CI auto-merge polling/flaky budget. Override CHECK_POLL_INTERVAL=30, CHECK_POLL_TIMEOUT=3600, FLAKY_RETRY_MAX=2.",
+    "pollIntervalSeconds": 30,
+    "pollTimeoutSeconds": 3600,
+    "flakyRetryMax": 2
+  },
+
+  "lease": {
+    "$comment": "Per-issue lease TTL/heartbeat. Override AUTO_LEASE_TTL=1800, AUTO_LEASE_HEARTBEAT=900 (seconds).",
+    "ttlSeconds": 1800,
+    "heartbeatSeconds": 900
+  }
+}

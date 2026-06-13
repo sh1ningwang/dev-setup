@@ -1,0 +1,110 @@
+name: "Bug"
+description: "Behavior diverges from intent/spec; specified to implementation-ready detail."
+title: "fix: <concise summary>"
+# Default labels applied at filing time. See .github/auto/labels.json.
+# Bugs default to priority P1; promote to status:ready + auto:eligible when specced.
+labels: ["type:bug", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill every required field. This body is read as **structured state** by the
+        implementation loop (`/auto:sa-implement`): the Implementation Instructions
+        are the spec, and the Definition of Done gates the merge — it MUST include a
+        regression test that fails before the fix and passes after.
+  - type: textarea
+    id: background
+    attributes:
+      label: "Background"
+      description: "What is broken and where: the observed failure, the component/file if known, when it started, and any related issues/PRs. Include error output/logs if available."
+      placeholder: "The seed scanner crashes on repos with no package.json; introduced by #42 ..."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: "Steps to Reproduce"
+      description: "Exact steps, plus expected vs actual behavior. The implementer must be able to reproduce the failure locally BEFORE fixing it."
+      value: |
+        1.
+        2.
+
+        **Expected:**
+        **Actual:**
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: "Purpose"
+      description: "What correct behavior looks like once fixed, and why it matters (user impact, data integrity, etc.)."
+      placeholder: "Restore <correct behavior> so that <impact> ..."
+    validations:
+      required: true
+  - type: textarea
+    id: affected-files
+    attributes:
+      label: "Affected Files"
+      description: "Every file to be created, modified, or deleted — repo-relative paths, one per line, each annotated (new/modify/delete). Include the suspected root-cause location if known."
+      value: |
+        - `path/to/file.ext` — modify: <what changes here>
+    validations:
+      required: true
+  - type: textarea
+    id: implementation-instructions
+    attributes:
+      label: "Implementation Instructions"
+      description: "Root-cause analysis (or how to find it), the exact fix approach, and the regression test to add — detailed enough that someone with NO other context fixes this correctly without re-deriving the diagnosis."
+      value: |
+        **Root cause (known or suspected):**
+
+        **Fix steps:**
+        1.
+        2.
+
+        **Regression test to add:**
+
+        **Constraints / non-goals:**
+    validations:
+      required: true
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: "Definition of Done"
+      description: "The verification checklist that MUST be performed before anyone (human or agent) claims this issue done. Every verifiable item must be exercised and verified LOCALLY — reproduce, fix, re-run, observe; never check an item off on faith."
+      value: |
+        - [ ] Failure reproduced locally before the fix (observed, not assumed)
+        - [ ] Root cause identified and stated in the PR
+        - [ ] Regression test added: run locally, fails before / passes after the fix
+        - [ ] Full test suite run locally and green
+        - [ ] Docs updated if behavior/API changed
+        - [ ] gitleaks clean; conventional, atomic, buildable-per-commit
+        - [ ] No `Co-Authored-By` lines in any commit
+        - [ ] PR targets `develop-auto`; CI 100% green
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      description: "P0 highest. Bugs default to P1."
+      options:
+        - "P0"
+        - "P1"
+        - "P2"
+        - "P3"
+      default: 1
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: "Size"
+      description: "Informational scope hint (S/M/L/XL); the same consensus protocol runs for every size. Leave blank if unsure (treated as L)."
+      options:
+        - "S"
+        - "M"
+        - "L"
+        - "XL"
+    validations:
+      required: true

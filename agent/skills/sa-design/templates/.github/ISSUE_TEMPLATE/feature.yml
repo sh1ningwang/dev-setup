@@ -1,0 +1,100 @@
+name: "Feature"
+description: "A new user-facing capability, specified to implementation-ready detail."
+title: "feat: <concise summary>"
+# Default labels applied at filing time. The canonical taxonomy lives in
+# .github/auto/labels.json (single source of truth, mirrors lib/constants.sh).
+# Newly filed work starts at status:triage; a human (or /auto:sa-design) promotes
+# it to status:ready + auto:eligible once it is fully specced.
+labels: ["type:feature", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill every required field. This body is read as **structured state** by the
+        implementation loop (`/auto:sa-implement`): the Implementation Instructions
+        are the spec, and the Definition of Done gates the merge. A complete spec
+        lets anyone — human or agent — pick this issue up cold and implement it
+        correctly. Under-specced issues stay in `status:triage` and are not picked
+        up autonomously until a human promotes them.
+  - type: textarea
+    id: background
+    attributes:
+      label: "Background"
+      description: "Current state and the gap: what exists today, why it falls short, and any history/context an implementer needs. Link related issues/PRs/docs."
+      placeholder: "Today users cannot ...; the existing <module> only handles ...; this leads to ..."
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: "Purpose"
+      description: "What this change achieves and for whom — the outcome, not the mechanism. One short paragraph an implementer can use to resolve ambiguity."
+      placeholder: "Enable <user> to <outcome>, so that ..."
+    validations:
+      required: true
+  - type: textarea
+    id: affected-files
+    attributes:
+      label: "Affected Files"
+      description: "Every file to be created, modified, or deleted — repo-relative paths, one per line, each annotated (new/modify/delete) with a one-line note of what changes there."
+      value: |
+        - `path/to/file.ext` — modify: <what changes here>
+        - `path/to/new_file.ext` — new: <what it contains>
+    validations:
+      required: true
+  - type: textarea
+    id: implementation-instructions
+    attributes:
+      label: "Implementation Instructions"
+      description: "Step-by-step instructions detailed enough that someone with NO other context implements this correctly: ordered steps, function/class/interface signatures, data shapes, error handling, edge cases, and explicit constraints/non-goals."
+      value: |
+        1.
+        2.
+
+        **Interfaces / contracts:**
+
+        **Edge cases to handle:**
+
+        **Constraints / non-goals:**
+    validations:
+      required: true
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: "Definition of Done"
+      description: "The verification checklist that MUST be performed before anyone (human or agent) claims this issue done. Every verifiable item must be exercised and verified LOCALLY — run the code/tests/commands and observe the result; never check an item off on faith. Edit if this change needs more; do not weaken the baseline."
+      value: |
+        - [ ] Every step in Implementation Instructions is implemented (no partial scope)
+        - [ ] New behavior exercised end-to-end locally and observed working (not assumed)
+        - [ ] Tests added/updated; full suite run locally and green
+        - [ ] Docs updated if behavior/API changed
+        - [ ] gitleaks clean; conventional, atomic, buildable-per-commit
+        - [ ] No `Co-Authored-By` lines in any commit
+        - [ ] PR targets `develop-auto`; CI 100% green
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      description: "P0 highest. Default P2."
+      options:
+        - "P0"
+        - "P1"
+        - "P2"
+        - "P3"
+      default: 2
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: "Size"
+      description: "Informational scope hint (S/M/L/XL); the same consensus protocol runs for every size. Leave blank if unsure (treated as L)."
+      options:
+        - "S"
+        - "M"
+        - "L"
+        - "XL"
+    validations:
+      required: true

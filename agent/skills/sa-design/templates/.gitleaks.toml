@@ -1,0 +1,84 @@
+# gitleaks configuration for /auto-managed repositories.
+#
+# Used by the deterministic commit gate (`gitleaks protect --staged --redact`,
+# bin/commit-gate.sh) on EVERY commit, and as a second, independent pass by the
+# review-secrets-leaks role. Preflight A10 aborts the run if gitleaks is not
+# installed, so this gate never silently no-ops.
+#
+# Goal: catch GitHub tokens (gho_/ghp_/ghs_/ghr_/github_pat_), generic API keys /
+# secrets assigned in source, and private keys — before they reach a commit.
+#
+# Place this file at the repo root as `.gitleaks.toml`. gitleaks auto-discovers it.
+
+title = "auto-secret-scan"
+
+# Start from gitleaks' maintained default ruleset, then add the rules below.
+[extend]
+useDefault = true
+
+# --------------------------------------------------------------------------- #
+# GitHub tokens (the highest-risk leak for an autonomous git/gh agent).
+# --------------------------------------------------------------------------- #
+[[rules]]
+id = "auto-github-pat-classic"
+description = "GitHub Personal Access Token (classic, ghp_)"
+regex = '''ghp_[0-9A-Za-z]{36,255}'''
+keywords = ["ghp_"]
+
+[[rules]]
+id = "auto-github-oauth"
+description = "GitHub OAuth Access Token (gho_)"
+regex = '''gho_[0-9A-Za-z]{36,255}'''
+keywords = ["gho_"]
+
+[[rules]]
+id = "auto-github-app-server"
+description = "GitHub App / refresh / server-to-server token (ghs_/ghr_/ghu_)"
+regex = '''gh[sru]_[0-9A-Za-z]{36,255}'''
+keywords = ["ghs_", "ghr_", "ghu_"]
+
+[[rules]]
+id = "auto-github-pat-fine-grained"
+description = "GitHub fine-grained Personal Access Token (github_pat_)"
+regex = '''github_pat_[0-9A-Za-z_]{82,255}'''
+keywords = ["github_pat_"]
+
+# --------------------------------------------------------------------------- #
+# Private keys (PEM-style).
+# --------------------------------------------------------------------------- #
+[[rules]]
+id = "auto-private-key"
+description = "Private key (PEM block: RSA/EC/DSA/OPENSSH/PGP/generic)"
+regex = '''-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP |ENCRYPTED )?PRIVATE KEY-----'''
+keywords = ["-----BEGIN", "PRIVATE KEY"]
+
+# --------------------------------------------------------------------------- #
+# Generic API key / secret / token assignments in source.
+# Catches `api_key = "..."`, `secret: '...'`, `token=...`, etc. with a
+# sufficiently high-entropy / long value. Tuned to reduce false positives.
+# --------------------------------------------------------------------------- #
+[[rules]]
+id = "auto-generic-api-key"
+description = "Generic API key / secret / token assignment"
+regex = '''(?i)(?:api[_-]?key|secret|token|passwd|password|access[_-]?key|client[_-]?secret)['"\s]{0,5}[:=]['"\s]{0,5}([0-9A-Za-z\-_./+=]{20,})'''
+secretGroup = 1
+keywords = ["key", "secret", "token", "password", "passwd"]
+entropy = 3.5
+
+# --------------------------------------------------------------------------- #
+# Allowlist: do not flag the runtime cache or build-time staging, and ignore
+# common documentation placeholders so docs/examples don't trip the gate.
+# --------------------------------------------------------------------------- #
+[allowlist]
+description = "Global allowlist: disposable cache, spec staging, lockfiles, placeholders."
+paths = [
+  '''(^|/)\.auto/''',
+  '''(^|/)\.build-spec/''',
+  '''(^|/).*\.lock$''',
+  '''(^|/).*\.min\.(js|css)$''',
+]
+regexes = [
+  # Documentation placeholders, plus GitHub noreply commit emails
+  # ("<id>+<login>@users.noreply.github.com") — public identifiers, not secrets.
+  '''(?i)(your[-_ ]?(api[-_ ]?key|token|secret)|<[^>]*(key|token|secret)[^>]*>|example|placeholder|dummy|xxxxxxxx|0{8,}|[0-9]+\+[a-z0-9-]+@users\.noreply\.github\.com)''',
+]

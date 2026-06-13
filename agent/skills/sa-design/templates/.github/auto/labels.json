@@ -1,0 +1,31 @@
+[
+  { "name": "auto:eligible",       "color": "0E8A16", "description": "/auto MAY pick this issue for autonomous work. Required to claim." },
+  { "name": "auto:claimed",        "color": "FBCA04", "description": "A lease is held by an /auto run (paired with a lease comment + assignee). Do not pick up." },
+  { "name": "auto:hold",           "color": "D93F0B", "description": "Human-gated. /auto must NOT pick this issue even if otherwise eligible (used for escalations)." },
+  { "name": "auto:stop",           "color": "B60205", "description": "Kill-switch on the pinned #auto-control issue; presence halts all /auto pickup until removed." },
+  { "name": "auto:seeded",         "color": "D4C5F9", "description": "Issue was filed automatically by the --seed/triage pass. Carries a hidden fingerprint marker." },
+
+  { "name": "status:triage",       "color": "EDEDED", "description": "Newly filed (often by --seed). Awaiting prioritization/sizing; not yet auto-pickable." },
+  { "name": "status:ready",        "color": "0E8A16", "description": "Fully specced (size + priority + acceptance criteria). Ready to implement." },
+  { "name": "status:in-progress",  "color": "FBCA04", "description": "Implementation underway in an /auto iteration." },
+  { "name": "status:in-review",    "color": "D4C5F9", "description": "PR open against develop-auto, in bounded review rounds." },
+  { "name": "status:done",         "color": "0E8A16", "description": "PR merged to develop-auto. Issue closed by Closes #N." },
+  { "name": "status:blocked",      "color": "000000", "description": "Failed or blocked; needs a human. /auto will not proceed." },
+
+  { "name": "priority:P0",         "color": "B60205", "description": "Critical. Drop everything (build broken, security, data loss). Highest priority." },
+  { "name": "priority:P1",         "color": "D93F0B", "description": "High. Should be done this cycle." },
+  { "name": "priority:P2",         "color": "FBCA04", "description": "Normal. Default priority." },
+  { "name": "priority:P3",         "color": "C2E0C6", "description": "Low / nice-to-have. Picked up only when the queue is otherwise empty." },
+
+  { "name": "type:feature",        "color": "1D76DB", "description": "New user-facing capability." },
+  { "name": "type:bug",            "color": "D73A4A", "description": "Defect: behavior diverges from intent/spec." },
+  { "name": "type:chore",          "color": "BFD4F2", "description": "Maintenance: deps, config, housekeeping with no behavior change." },
+  { "name": "type:spike",          "color": "5319E7", "description": "Time-boxed investigation; output is findings, not shipped behavior." },
+  { "name": "type:refactor",       "color": "FEF2C0", "description": "Internal restructuring; no functional change." },
+  { "name": "type:docs",           "color": "0075CA", "description": "Documentation-only change." },
+
+  { "name": "size:S",              "color": "C2E0C6", "description": "Small: < ~1h, single file/concern. Size is informational." },
+  { "name": "size:M",              "color": "7057FF", "description": "Medium: a few files, one concern. Size is informational." },
+  { "name": "size:L",              "color": "E99695", "description": "Large: cross-cutting, multiple modules. Size is informational." },
+  { "name": "size:XL",             "color": "B60205", "description": "Extra-large: should usually be split. Size is informational, not an engine selector." }
+]
