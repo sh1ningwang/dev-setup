@@ -1,0 +1,21 @@
+- Each commit is self-contained. A reviewer reading just that commit's diff and message can understand what changed and why without context from sibling commits.
+- Each commit is small. One logical change per commit.
+- Each commit message is detailed. Subject line states the change in one short sentence (less than 72 chars). Body explains the why, the constraints and any non-obvious decisions. Reference the issue when relevant.
+- Commit order matters. Stack commits in dependency order so the tree compiles and tests pass at every commit. A reviewer should be able to git checkout any intermediate commit without a broken state.
+- Don't bundle for convenience. "These are all part of the same feature" is not a reason to combine — that's what the PR is for. The PR groups related commits and the commits decompose the change.
+- Refactors and renames go in their own commit. Pure refactors first, then the behaviour change on top. Never bury a bug fix inside a "drive-by cleanup" commit.
+- Ten commits is fine. Twenty is fine. One commit covering schema + migration + new routes + old module deletion + frontend + cleanup is not fine — it forecloses bisection and forces the reviewer to re-do the decomposition in their head.
+- Never include co-authored-by lines in commit messages.
+- All project work shall be GitHub issue driven. Every feature, bug and proposal MUST be created as an issue on the GitHub issues. Do NOT write proposals, task specs or tracking docs under docs/ and always use GitHub issues.
+- Every issue must have an assignee during creation, and if you don't know who to assign to, always assign to the account which you used to create this issue.
+- No duplicate GitHub issues. Before creating a new issue, search the existing issues list. If duplicates are found, keep one and close the others with a comment "Duplicate of #N".
+- Every pull request must link to at least one GitHub issue. The PR body uses "Closes #N" / "Fixes #N" or "Resolves #N" so that the issue auto-closes on merge. Do not link with prose like "this addresses #N", that doesn't auto-close.
+- Issue-first workflow. Before opening a PR, check whether a matching issue already exists. If one exists, link it. If none exists, STOP and create the issue first with the proper title prefix, assignee and at least one topic label, then open the PR linking it. A PR without an issue link must be amended with one before merge.
+- When issues are related or have an execution order, add explicit references in the issue body (Depends on #X, Blocks #Y, Related to #Z).
+- Any large feature or code change MUST have a milestone on GitHub issue and all related issues MUST be attached to it.
+- Every GitHub issue MUST carry at least one topic label so that the issue's domain is visible at a glance.
+- All git and GitHub related operations shall be performed with gh commands only, no git MCP or any other tool is allowed.
+- The account for all the git and GitHub related operations shall use the current active gh account. If there are multiple gh accounts configured on the user's environment and you think you should use another account for the corresponding git/GitHub operations instead of the active gh account, you shall seek the user's permission.
+- Use existing GitHub issue templates and pull request templates if applicable, otherwise create issues containing the following sections — background, purpose, implementation specification (with super detailed instructions), affected files, verification checklist and definition of done; and create pull requests with proper explanations on the summary of PR changes, what this PR does, and what issues this PR closes.
+- One pull request can have a big feature, but can have only one feature. Never mix multiple features into one pull request.
+- No force push is allowed.

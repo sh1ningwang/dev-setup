@@ -1,0 +1,5 @@
+- Never commit secrets, API keys or credentials. Never hardcode them and use environment variables or configs instead.
+- Never run commands that change global system or environment state without flagging it.
+- Never log confidential information or sensitive data in the log as plain text.
+- Never show confidential information, secrets, API keys or credentials as plain text on any user facing UI.
+- Always bear proper permission management in mind and design/implement proper access control on system resources.

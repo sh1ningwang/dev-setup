@@ -1,0 +1,19 @@
+- Abstraction and generalizability is ALWAYS crucial and all the code you write shall ensure proper abstraction is implemented so that it could generalize well in the future. Always separate the core skeleton engine and the actual business logic. The business logic shall be implemented in a "plug and play" and "switch to another" way so that we only plug a business logic implementation into an abstraction, and the abstraction serves as the interface which other components shall interact with.
+- No large code files (more than 500 lines) is allowed. When a file exceeds 500 lines, refactor and decompose it.
+- Always bear logging and traceability in your mind. All the code you write shall have proper logging with proper logging level to provide clear and detailed information for debugging and tracing.
+- All code you write shall have proper comments. Comment the why, not the what. Don't narrate what the code obviously does.
+- Keep existing comments accurate if you change the code around them.
+- Match the style, patterns and conventions already present in the file and project to ensure consistency.
+- Write code that's clear over code that's clever. Optimize for the next person reading it.
+- Handle errors explicitly. Never swallow exceptions or ignore failure cases.
+- Always validate input at boundaries (user input, API responses, external data, etc.).
+- No dead code is allowed. No commented-out blocks left behind. No unused imports or variables.
+- Don't add a new dependency for something the language/standard library or existing dependencies already do well.
+- Don't write your own version of an existing, well-tested, community-well-supported, well-known 3rd party library. Just reuse them.
+- Before adding a library, prefer well-maintained, widely used options.
+- When you change a behavior, you must update or add tests for it.
+- Don't delete or weaken a test to make it pass. Fix the underlying issue.
+- Run the relevant tests/linter before telling me something is done.
+- Tests must cover both successful and failure cases at all times.
+- Test coverage must be at least 80%.
+- Write maintainable, generalizable code.
