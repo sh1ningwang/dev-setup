@@ -81,6 +81,7 @@ load_run_env() {
   export AUTO_RUN_ID GH_REPO="$REPO"
   STATUS_ISSUE="${STATUS_ISSUE:-}"
   THEME="${THEME:-}"
+  ASSIGNEE="${ASSIGNEE:-}"
   # Re-assert the daemon's pinned account; the engine hard-refuses any drift.
   gh_select_account >/dev/null || { echo "ERROR account-drift" >&2; exit "$EX_PREFLIGHT_ACCOUNT"; }
 }
@@ -109,7 +110,7 @@ branch_type_for() {
 # =========================================================================== #
 cmd_queue() {
   load_run_env
-  gh_queue_list "$THEME"
+  gh_queue_list "$THEME" "$ASSIGNEE"
 }
 
 # =========================================================================== #

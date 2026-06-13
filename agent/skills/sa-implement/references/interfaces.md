@@ -97,10 +97,13 @@ auto-iterate.sh --phase finish --issue <N> --worktree <path> [--branch <name>]
 ### `auto-daemon.sh` — the long-running deterministic orchestrator (continuity)
 
 ```
-auto-daemon.sh start --repo <url> --account <name> [--theme <T>]
+auto-daemon.sh start --repo <url> --account <name> --assignee <user>
+                     [--label <L> | --theme <L>]
                      [--duration <X> | --until <T>] [--once] [--max-prs <N>]
                      [--max-escalations <N>] [--poll-interval <S>]
                      [--report-timeout <S>] [--verbose]
+                     # queue is filtered to issues ASSIGNED TO <user>, optionally also
+                     # carrying <label>. --repo/--account/--assignee are required.
 auto-daemon.sh stop
 auto-daemon.sh status
 ```

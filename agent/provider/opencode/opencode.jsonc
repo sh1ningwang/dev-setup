@@ -3,14 +3,14 @@
   // Schema reference enables editor autocompletion and validation.
   "$schema": "https://opencode.ai/config.json",
 
-  // Default model in "provider/model" form. "zai" is OpenCode's built-in
-  // provider id for the official Z.AI endpoint. Authenticate with the GLM
-  // Coding Plan API key via `opencode auth login` (select Z.AI / GLM Coding
-  // Plan) or the ZAI_API_KEY env var.
-  "model": "zai/glm-4.7",
+  // Default model in "provider/model" form. "zai-coding-plan" is OpenCode's
+  // built-in provider id for the GLM Coding Plan endpoint (all models $0.00,
+  // included in the subscription). Authenticate via `opencode auth login`
+  // (select Z.AI Coding Plan) or the ZAI_API_KEY env var.
+  "model": "zai-coding-plan/glm-4.7",
 
   // Lightweight model for side tasks (title generation, summaries).
-  "small_model": "zai/glm-4.7",
+  "small_model": "zai-coding-plan/glm-4.7",
 
   // Bypass mode: allow all tool actions (edit, bash, webfetch, etc.)
   // without prompting for approval. This disables the per-action
@@ -33,24 +33,18 @@
   // Enable built-in code formatters.
   "formatter": true,
 
-  // Z.AI provider config. The GLM Coding Plan is served from the coding
-  // endpoint below (NOT the default Z.AI endpoint), and the request must
-  // carry the API key — without it OpenCode sends no auth header and the
-  // server rejects the call ("authentication parameter not received").
-  // The key is read from the ZAI_API_KEY env var so no secret is committed:
-  // export it in your shell (`export ZAI_API_KEY=...` from
-  // https://z.ai/manage-apikey/apikey-list), or run `opencode auth login`
-  // and pick Z.AI Coding Plan instead.
+  // GLM Coding Plan per-model config. The "zai-coding-plan" provider is
+  // built-in (endpoint https://api.z.ai/api/coding/paas/v4), so only the
+  // API key is needed — set it via `opencode auth login` (pick Z.AI Coding
+  // Plan) or export ZAI_API_KEY from
+  // https://z.ai/manage-apikey/apikey-list.
   //
   // Per-model: GLM uses an Anthropic-style thinking toggle (type
   // enabled/disabled), so reasoning is turned on per model here.
-  // Note: GLM 5.2 does not exist as of this writing — latest is GLM 5.1.
+  // Available coding-plan models: glm-4.5-air, glm-4.7, glm-5-turbo,
+  // glm-5.1, glm-5.2, glm-5v-turbo.
   "provider": {
-    "zai": {
-      "options": {
-        "baseURL": "https://api.z.ai/api/coding/paas/v4",
-        "apiKey": "{env:ZAI_API_KEY}"
-      },
+    "zai-coding-plan": {
       "models": {
         "glm-4.7": {
           "options": {

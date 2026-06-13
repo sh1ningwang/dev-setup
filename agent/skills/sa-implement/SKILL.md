@@ -34,10 +34,19 @@ logic and never touch git/gh except through the verb layer `bin/auto-api.sh`.
 
 ## Inputs
 
-Two arguments (ask the user for any that are missing):
+Four values. **Every time sa-implement is invoked you MUST explicitly ask the user for all
+four** — never assume, reuse, or infer any of them from a previous session, the environment,
+or defaults. Prior runs do not carry over; prompt for them fresh each invocation.
 
-1. **`repo_url`** — the GitHub repository to work (e.g. `https://github.com/owner/name`).
-2. **`account`** — the `gh` account to use for all GitHub operations on this run.
+1. **`repo_url`** — (MANDATORY) the GitHub repository to work (e.g. `https://github.com/owner/name`).
+2. **`account`** — (MANDATORY) the `gh` account to use for all GitHub operations on this run.
+3. **`assignee`** — (MANDATORY) the GitHub user whose assigned issues this run works. The
+   daemon only polls/queues issues **assigned to this user**.
+4. **`label`** — (OPTIONAL) a topic label that further scopes the queue to issues also
+   carrying it. Omit to work all of the assignee's eligible issues.
+
+Do not start the daemon until `repo_url`, `account`, and `assignee` are all provided. If the
+user gives only some, ask for the rest before proceeding.
 
 Run sa-implement **from within the local clone** of `repo_url` (the daemon's working tree
 is the current directory; preflight asserts the origin matches).
@@ -115,8 +124,9 @@ If you cannot satisfy an invariant, **stop and tell the user** — do not improv
 ```bash
 AUTO_HOME="${AUTO_HOME:?...}"; BIN="$AUTO_HOME/bin"
 mkdir -p .auto/daemon
+# Pass --assignee always; add --label only if the user provided one (omit otherwise).
 setsid bash -c "'$BIN/auto-daemon.sh' start --repo '<repo_url>' --account '<account>' \
-  >.auto/daemon/daemon.log 2>&1" &
+  --assignee '<assignee>' [--label '<label>'] >.auto/daemon/daemon.log 2>&1" &
 ```
 
 Then poll for the outcome (preflight is the gate to autonomy and may abort):

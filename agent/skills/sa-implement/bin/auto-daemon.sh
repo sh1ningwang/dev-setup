@@ -16,12 +16,13 @@
 #   queue is EMPTY does the daemon idle-poll every --poll-interval seconds (default 15m).
 #
 # Lifecycle:
-#   start  --repo <url> --account <name> [--theme T] [--duration X|--until T] [--once]
-#          [--max-prs N] [--max-escalations N] [--poll-interval S] [--report-timeout S]
-#          [--verbose]
+#   start  --repo <url> --account <name> --assignee <user> [--label L | --theme L]
+#          [--duration X|--until T] [--once] [--max-prs N] [--max-escalations N]
+#          [--poll-interval S] [--report-timeout S] [--verbose]
 #       Runs in the FOREGROUND (the SKILL backgrounds it). Switches gh to <account> (the
 #       caller passing it IS the switch authorization), runs preflight, publishes run
-#       state, then loops. On preflight failure it writes .auto/daemon/abort and exits.
+#       state, then loops. The queue is filtered to issues ASSIGNED TO <user> (and, when
+#       given, also carrying <label>). On preflight failure it writes .auto/daemon/abort.
 #   stop     Signal a running daemon to stop (also unblocks a waiting session) and clean up.
 #   status   Print whether a daemon is running and its run ids.
 #
@@ -81,13 +82,14 @@ derive_slug() {
 # start
 # =========================================================================== #
 cmd_start() {
-  local repo_url="" account="" theme="" duration="" until_at="" once=0
+  local repo_url="" account="" assignee="" theme="" duration="" until_at="" once=0
   local max_prs=0 max_esc="$MAX_ESCALATIONS" poll_interval=900 report_timeout=3600
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --repo)            repo_url="${2:?--repo requires a url}"; shift 2 ;;
       --account)         account="${2:?--account requires a name}"; shift 2 ;;
-      --theme)           theme="${2:?--theme requires a label}"; shift 2 ;;
+      --assignee)        assignee="${2:?--assignee requires a name}"; shift 2 ;;
+      --theme|--label)   theme="${2:?--theme/--label requires a label}"; shift 2 ;;
       --duration)        duration="${2:?--duration requires a value}"; shift 2 ;;
       --until)           until_at="${2:?--until requires a value}"; shift 2 ;;
       --once)            once=1; shift ;;
@@ -100,7 +102,7 @@ cmd_start() {
       *) log_error "daemon_args" "unknown-arg" "unknown argument: $1"; exit "$EX_ERR" ;;
     esac
   done
-  [[ -n "$repo_url" && -n "$account" ]] || { log_error "daemon_args" "missing" "need --repo and --account"; exit "$EX_ERR"; }
+  [[ -n "$repo_url" && -n "$account" && -n "$assignee" ]] || { log_error "daemon_args" "missing" "need --repo, --account and --assignee (--label is optional)"; exit "$EX_ERR"; }
 
   local slug; slug="$(derive_slug "$repo_url")" || { log_error "daemon_start" "bad-url" "cannot parse repo from: $repo_url"; exit "$EX_ERR"; }
 
@@ -154,13 +156,14 @@ cmd_start() {
     printf 'STATUS_ISSUE=%q\n' "$status"
     printf 'REPO=%q\n' "$slug"
     printf 'THEME=%q\n' "$theme"
+    printf 'ASSIGNEE=%q\n' "$assignee"
     printf 'AUTO_GH_ACCOUNT=%q\n' "$account"
   } > "$RUN_ENV_FILE"
   printf 'ready run=%s control=%s status=%s\n' "$run_id" "$control" "${status:--}" > "$READY_FILE"
 
   # ---- The cadence loop. ----
   daemon_loop "$control" "$theme" "$start_epoch" "$duration" "$until_at" \
-    "$once" "$max_prs" "$max_esc" "$poll_interval" "$report_timeout"
+    "$once" "$max_prs" "$max_esc" "$poll_interval" "$report_timeout" "$assignee"
 }
 
 # --------------------------------------------------------------------------- #
@@ -168,7 +171,7 @@ cmd_start() {
 # --------------------------------------------------------------------------- #
 daemon_loop() {
   local control="$1" theme="$2" start_epoch="$3" duration="$4" until_at="$5"
-  local once="$6" max_prs="$7" max_esc="$8" poll="$9" report_to="${10}"
+  local once="$6" max_prs="$7" max_esc="$8" poll="$9" report_to="${10}" assignee="${11}"
   local pr_count=0 esc_count=0 round=0
 
   while true; do
@@ -192,7 +195,7 @@ daemon_loop() {
 
     # 2) Build the candidate queue for the agent to pick from (decision B).
     local queue count
-    queue="$(gh_queue_list "$theme" 2>/dev/null || echo '[]')"
+    queue="$(gh_queue_list "$theme" "$assignee" 2>/dev/null || echo '[]')"
     count="$(printf '%s' "$queue" | jq 'length' 2>/dev/null || echo 0)"
 
     if [[ "$count" -eq 0 ]]; then
