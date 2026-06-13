@@ -14,7 +14,7 @@ OS="$(uname -s)"
 # "dir"   → symlink entire directory
 # "glob"  → symlink each matching file individually
 
-declare -a PACKAGES=(claude-code flameshot git ghostty lazygit neovim rime)
+declare -a PACKAGES=(claude-code flameshot git ghostty lazygit neovim rime zed)
 
 pkg_mode_claude_code="custom"
 
@@ -22,6 +22,9 @@ pkg_mode_git="custom"
 
 pkg_mode_flameshot="custom"
 
+pkg_mode_zed="custom"
+
+pkg_basedir_ghostty="terminal/ghostty"
 pkg_source_ghostty="config"
 pkg_mode_ghostty="file"
 if [[ "$OS" == "Darwin" ]]; then
@@ -30,6 +33,7 @@ else
     pkg_target_ghostty="$HOME/.config/ghostty/config"
 fi
 
+pkg_basedir_lazygit="git/lazygit"
 pkg_source_lazygit="config.yml"
 pkg_mode_lazygit="file"
 if [[ "$OS" == "Darwin" ]]; then
@@ -38,6 +42,7 @@ else
     pkg_target_lazygit="$HOME/.config/lazygit/config.yml"
 fi
 
+pkg_basedir_neovim="terminal/neovim"
 pkg_source_neovim="."
 pkg_mode_neovim="dir"
 pkg_target_neovim="$HOME/.config/nvim"
@@ -174,7 +179,7 @@ link_custom_claude_code() {
     local pkg="claude-code"
 
     # settings.json
-    local src="$REPO_DIR/claude-code/settings.json"
+    local src="$REPO_DIR/agent/provider/claude-code/settings.json"
     local target="$HOME/.claude/settings.json"
     if is_correct_link "$target" "$src"; then
         echo "  ✓ $target → already linked"
@@ -188,7 +193,7 @@ link_custom_claude_code() {
     fi
 
     # skills directory
-    src="$REPO_DIR/claude-code/skills"
+    src="$REPO_DIR/agent/provider/claude-code/skills"
     target="$HOME/.claude/skills"
     if is_correct_link "$target" "$src"; then
         echo "  ✓ $target → already linked"
@@ -202,7 +207,7 @@ link_custom_claude_code() {
     fi
 
     # rules directory
-    src="$REPO_DIR/claude-code/rules"
+    src="$REPO_DIR/agent/provider/claude-code/rules"
     target="$HOME/.claude/rules"
     if is_correct_link "$target" "$src"; then
         echo "  ✓ $target → already linked"
@@ -216,7 +221,7 @@ link_custom_claude_code() {
     fi
 
     # ccstatusline settings
-    src="$REPO_DIR/claude-code/ccstatusline/settings.json"
+    src="$REPO_DIR/agent/provider/claude-code/ccstatusline/settings.json"
     target="$HOME/.config/ccstatusline/settings.json"
     if [[ -f "$src" ]]; then
         if is_correct_link "$target" "$src"; then
@@ -297,6 +302,38 @@ link_custom_flameshot() {
         src="$REPO_DIR/flameshot/flameshot-autostart.desktop"
         target="$HOME/.config/autostart/flameshot-autostart.desktop"
     fi
+    if is_correct_link "$target" "$src"; then
+        echo "  ✓ $target → already linked"
+    else
+        if [[ -e "$target" || -L "$target" ]]; then
+            backup_path "$pkg" "$target"
+            echo "  ↪ backed up $target"
+        fi
+        make_link "$src" "$target"
+        echo "  ✓ $target → $src"
+    fi
+}
+
+link_custom_zed() {
+    local pkg="zed"
+
+    # settings.json
+    local src="$REPO_DIR/zed/settings.json"
+    local target="$HOME/.config/zed/settings.json"
+    if is_correct_link "$target" "$src"; then
+        echo "  ✓ $target → already linked"
+    else
+        if [[ -e "$target" || -L "$target" ]]; then
+            backup_path "$pkg" "$target"
+            echo "  ↪ backed up $target"
+        fi
+        make_link "$src" "$target"
+        echo "  ✓ $target → $src"
+    fi
+
+    # keymap.json
+    src="$REPO_DIR/zed/keymap.json"
+    target="$HOME/.config/zed/keymap.json"
     if is_correct_link "$target" "$src"; then
         echo "  ✓ $target → already linked"
     else
@@ -436,7 +473,7 @@ check_glob() {
 }
 
 check_custom_claude_code() {
-    local src="$REPO_DIR/claude-code/settings.json"
+    local src="$REPO_DIR/agent/provider/claude-code/settings.json"
     local target="$HOME/.claude/settings.json"
     if is_correct_link "$target" "$src"; then
         echo "  [x] $target"
@@ -444,7 +481,7 @@ check_custom_claude_code() {
         echo "  [ ] $target"
     fi
 
-    src="$REPO_DIR/claude-code/skills"
+    src="$REPO_DIR/agent/provider/claude-code/skills"
     target="$HOME/.claude/skills"
     if is_correct_link "$target" "$src"; then
         echo "  [x] $target"
@@ -452,7 +489,7 @@ check_custom_claude_code() {
         echo "  [ ] $target"
     fi
 
-    src="$REPO_DIR/claude-code/rules"
+    src="$REPO_DIR/agent/provider/claude-code/rules"
     target="$HOME/.claude/rules"
     if is_correct_link "$target" "$src"; then
         echo "  [x] $target"
@@ -460,7 +497,7 @@ check_custom_claude_code() {
         echo "  [ ] $target"
     fi
 
-    src="$REPO_DIR/claude-code/ccstatusline/settings.json"
+    src="$REPO_DIR/agent/provider/claude-code/ccstatusline/settings.json"
     target="$HOME/.config/ccstatusline/settings.json"
     if [[ ! -f "$src" ]]; then
         echo "  [-] $target (source not yet created)"
@@ -511,6 +548,24 @@ check_custom_flameshot() {
         src="$REPO_DIR/flameshot/flameshot-autostart.desktop"
         target="$HOME/.config/autostart/flameshot-autostart.desktop"
     fi
+    if is_correct_link "$target" "$src"; then
+        echo "  [x] $target"
+    else
+        echo "  [ ] $target"
+    fi
+}
+
+check_custom_zed() {
+    local src="$REPO_DIR/zed/settings.json"
+    local target="$HOME/.config/zed/settings.json"
+    if is_correct_link "$target" "$src"; then
+        echo "  [x] $target"
+    else
+        echo "  [ ] $target"
+    fi
+
+    src="$REPO_DIR/zed/keymap.json"
+    target="$HOME/.config/zed/keymap.json"
     if is_correct_link "$target" "$src"; then
         echo "  [x] $target"
     else

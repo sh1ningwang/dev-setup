@@ -2,6 +2,36 @@
 
 Personal dev environment config files, managed via a single `link` script that symlinks (or generates) configs to their expected paths.
 
+## Repository Structure
+
+Packages are grouped into category directories, with a few standalone packages at the root:
+
+```
+dev-setup/
+├── agent/
+│   ├── provider/
+│   │   └── claude-code/      # Claude Code CLI — settings, skills, rules, ccstatusline
+│   └── skills/               # vendored, self-contained skill packages (NOT linked)
+│       ├── sa-design/        #   spec a context → GitHub issues (templates + consensus agents)
+│       └── sa-implement/     #   autonomous issue→PR loop (bin/ lib/ agents/ templates/ references/)
+├── git/
+│   ├── config                # main git config → ~/.gitconfig
+│   ├── personal.gitconfig    # personal profile (conditional include)
+│   ├── work.gitconfig        # work profile (conditional include)
+│   └── lazygit/              # lazygit TUI config
+├── terminal/
+│   ├── ghostty/              # Ghostty terminal emulator config
+│   └── neovim/               # Neovim (LazyVim) config
+├── flameshot/                # Screenshot tool config + autostart
+├── rime/                     # Rime input method engine config
+├── zed/                      # Zed editor settings + keymap
+└── link                      # Symlink/generate manager script
+```
+
+The `link` script identifies packages by name (e.g. `claude-code`, `ghostty`); the category directories above are an organizational layer and do not change package names or their target paths. The `claude-code` package now lives at `agent/provider/claude-code/`.
+
+`agent/skills/` holds **self-contained** skill packages vendored from [github.com/sh1ningwang/auto](https://github.com/sh1ningwang/auto) — each carries its own engine (`bin/`, `lib/`, `agents/`, `templates/`, `references/`) and resolves all paths from its own package root, so it depends on no external plugin install. These are **source only**: the `link` script does not symlink them anywhere.
+
 ## Quick Start
 
 ```bash
@@ -124,7 +154,7 @@ Neovim with LazyVim starter config and Catppuccin Latte colorscheme.
 
 | Item | Target Path |
 |------|-------------|
-| `neovim/` (dir) | `~/.config/nvim/` |
+| `terminal/neovim/` (dir) | `~/.config/nvim/` |
 
 ---
 
