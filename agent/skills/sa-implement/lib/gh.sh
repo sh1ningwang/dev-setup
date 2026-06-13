@@ -359,21 +359,6 @@ gh_queue_list() {
   '
 }
 
-# gh_count_in_progress
-#   Print the count of issues currently in status:in-progress (the probabilistic
-#   global concurrency ceiling input, decisions.md §4). Open issues only.
-gh_count_in_progress() {
-  # Optional <exclude-issue#>: do not count that issue. The worktree ceiling passes the
-  # issue it is STARTING (already moved to status:in-progress by the claim) so it does
-  # not count itself against the ceiling (off-by-one at --concurrency 1). Caller
-  # guarantees a numeric issue#, so interpolating it into the jq filter is safe.
-  local exclude="${1:-}"
-  local jqf='length'
-  [[ -n "$exclude" ]] && jqf="[ .[] | select(.number != ${exclude}) ] | length"
-  gh_retry gh.count_in_progress -- \
-    issue list --state open --label "$AUTO_LABEL_STATUS_IN_PROGRESS" \
-    --limit 200 --json number --jq "$jqf"
-}
 
 # =========================================================================== #
 # 4. ADDITIVE LABEL / ASSIGNEE EDITS + APPEND-ONLY COMMENTS (decisions.md §4).

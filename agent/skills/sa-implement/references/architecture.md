@@ -1,6 +1,6 @@
 # `/auto` — Autonomous 24/7 Repository-Evolution Skill — Design Document
 
-> A Claude Code **plugin** whose implementation loop is the slash command **`/auto:sa-implement`** (named `/auto:auto` when this document was first written; `/auto` below refers to that loop). Given a GitHub-issue-backed backlog, it autonomously evolves a repository until the user stops it. It is **not** a platform; it is a `git`+`gh`-only deterministic shell engine plus native Claude **subagents**, sequenced by the live Claude Code session. Installs in one step from a plugin marketplace; `${CLAUDE_PLUGIN_ROOT}` resolves the engine scripts after install. Since v2 the plugin bundles a second skill, **`/auto:sa-design`**, which compiles a feature/bug/chore context into the fully-specced, context-tagged issues this loop consumes (`--theme <tag>`), and the engine follows the **installing user's active local gh account** (no hardcoded login; see §6.4).
+> An **agent-agnostic skill package** whose implementation loop is the slash command **`/sa-implement <repo-url> <gh-account>`**. Given a GitHub-issue-backed backlog, it autonomously evolves a repository until the user stops it. It is **not** a platform; it is a `git`+`gh`-only deterministic shell engine plus host-native **subagents**, driven by **two cooperating processes**: a long-running, deterministic **bash daemon** `bin/auto-daemon.sh` that owns the loop's cadence and triggering, and an interactive **agent session** (host-neutral: OpenCode, Codex, or Claude Code) that is the cognitive worker. The session performs every git/GitHub mutation through the verb layer `bin/auto-api.sh` — it never calls `git`/`gh` directly. `AUTO_HOME` (the skill package's own base directory, set per the SKILL.md instructions) resolves the engine scripts. The package also bundles a companion skill, **`/sa-design`**, which compiles a feature/bug/chore context into the fully-specced, context-tagged issues this loop consumes (`--theme <tag>`). The daemon performs exactly one `gh auth switch` to the **operator-supplied account** at start, then snapshots and hard-refuses drift (see §6.4).
 
 ---
 
@@ -10,39 +10,49 @@ This document is **implementation-ready** and **reflects every hard constraint**
 
 ### Hard constraints (restated, binding)
 - **HC1 Branching/autonomy**: origin must have `develop` AND `develop-auto`. Every PR `/auto` opens targets **only** `develop-auto` (hard lock). PRs→`develop-auto` may auto-merge **only** when CI is 100% green. CI on PRs→`develop-auto` is **byte-identical** to CI on PRs→`develop`. Humans promote `develop-auto`→`develop`.
-- **HC2 Native + stateless**: a Claude Code plugin. **Subagents only** (no `TeamCreate`/agent-teams/`SendMessage`) — chosen NOT for portability but because every iteration must reconstruct cold from GitHub, and a long-lived in-memory agent-team cannot survive a `kill -9` / `/schedule` resurrection. Deterministic logic is shell using **only `git`+`gh`**. The GitHub MCP, the Workflow tool, and ScheduleWakeup are **never** hard dependencies; `/loop` + `/schedule` are the continuity mechanism.
+- **HC2 Host-neutral + stateless**: an agent-agnostic skill package. **Host-native subagents only** (no `TeamCreate`/agent-teams/`SendMessage`) — chosen NOT for portability but because every iteration must reconstruct cold from GitHub, and a long-lived in-memory agent-team cannot survive a `kill -9` / daemon resurrection. Deterministic logic is shell using **only `git`+`gh`**. The GitHub MCP and any host-specific scheduling tool are **never** hard dependencies; the **bash daemon `bin/auto-daemon.sh`** is the single continuity mechanism (it owns the loop's cadence, polls the issue queue, and triggers the agent session over FIFOs).
 - **HC3 Preflight aborts**: unmet prereqs → report the exact unmet condition and **terminate**, waiting for the user. Never silently create `develop-auto`.
 - **HC4 Engine**: **consensus-gated** — biased independent solvers reach the implementation plan (design consensus → meta-judge), then biased independent reviewers verify it (review consensus → meta-judge), same protocol every issue. Fix loop **bounded** (`AUTO_ROUNDS_CEILING` + escalate-to-new-issue fallback). `size:*` is informational, not an engine selector.
-- **HC5 Continuity**: `/loop` (self-paced, in-session) + durable cron `/schedule` (out-of-session cloud resurrection) as 双保险.
+- **HC5 Continuity**: the deterministic **bash daemon `bin/auto-daemon.sh`** is the single continuity mechanism. It is report-driven while work exists (pushes a round, then blocks awaiting the session's report) and idle-polls every ~15 minutes only when the queue is empty.
 - **HC6 Commits**: conventional, atomic, buildable-per-commit, gitleaks scan, **no `Co-Authored-By`**. Branch `auto/<type>/<issue#>-<slug>` from `develop-auto`. One small PR per issue.
 - **HC7 State externalization**: GitHub issues/labels are the durable queue+memory; local context disposable. One bounded deliverable (one issue) per iteration.
-- **HC8 Args**: `--duration/--until`, `--theme/--label`, `--context`, `--concurrency`, `--seed`, `--dry-run`, plus a kill-switch flippable from anywhere.
+- **HC8 Args**: `--duration/--until`, `--theme/--label`, `--max-prs`, `--max-escalations`, plus a kill-switch flippable from anywhere.
 
 ### Environment facts (verified at design time; historical)
 - Repo `/Users/chronoai/code/personal/auto` was **greenfield** at design time: no commits, no `develop`/`develop-auto`, no `.github/workflows`, no branch protection.
-- The host keyring may hold multiple authenticated `gh` accounts, so **account selection must be deterministic**. v1 resolved this by pinning one login; **since v2 the engine instead resolves the ACTIVE local gh login at run start, snapshots it, and hard-refuses mid-run drift — it never runs `gh auth switch`** (see §6.4).
+- The host keyring may hold multiple authenticated `gh` accounts, so **account selection must be deterministic**. The operator passes the target account as the `<gh-account>` argument; the daemon performs **exactly one `gh auth switch --user <account>` at start** (the argument IS the authorization to switch), then the engine snapshots the resolved account and hard-refuses any later mid-run drift (see §6.4).
 - Present: `git`, `gh`, `jq`, `python3`, `gitleaks` (`/opt/homebrew/bin/gitleaks`), `node`. **Absent: `yq`** → workflow YAML parsing uses `python3` (PyYAML or vendored `miniyaml.py`); `yq` is an optional accelerator only.
-- Distribution: a Claude Code **plugin** installed from a marketplace (`/plugin marketplace add sh1ningwang/auto` → `/plugin install auto@auto`), exposing `/auto:sa-implement` and `/auto:sa-design`. (Earlier dev builds symlinked a bare skill into `~/.claude/skills/`; superseded by the plugin. The implement skill was `/auto:auto` before v2.)
+- Distribution: a host-neutral **skill package** — a directory containing `SKILL.md` + `bin/` + `lib/` + `agents/` + `references/` + `templates/`, with `AUTO_HOME` set to that base directory per the SKILL.md instructions. It exposes `/sa-implement` and `/sa-design`. It is not a plugin and has no marketplace/registration step.
 
 ---
 
 ## 1. System overview
 
-`/auto` is two layers plus the session that drives them:
+`/sa-implement` is driven by **two cooperating processes** over a deterministic engine:
 
-1. **Deterministic engine (shell, `git`+`gh` only).** Preflight, queue selection, claim/lease, branch policy, commit gate, gitleaks, PR creation (base-locked), CI-parity, auto-merge-when-green, escalation, kill-switch, state. Every mutating/safety step is here; the session calls these scripts and **cannot bypass them** (they are also backed server-side by `develop-auto` branch protection + the `auto-base-guard` CI). Runnable with no agent at all (cron can call `auto-iterate.sh`).
-2. **Role subagents (native Claude `agents/*.md`).** The 12 roles ship as plugin subagents, spawned by their plugin-scoped name `auto:<role>`; each carries its own `tools:` grant (writers get Edit/Write; reviewers are read-only). No adapter, no injected prompt fragments — these are first-class Claude subagents.
+1. **Bash daemon — `bin/auto-daemon.sh` (owns the loop's cadence & triggering).** A long-running, deterministic shell process. At start it switches `gh` to the operator-supplied account (one `gh auth switch`), runs preflight, then **polls the GitHub issue queue** and **triggers the agent session**. Pacing is **report-driven while work exists** (it pushes a round, then blocks awaiting the session's report) and **idle-polls every ~15 minutes** only when the queue is empty. It talks to the session over two FIFOs under `.auto/daemon/`:
+   - `work.fifo` (daemon→session): `ROUND <n> <queue-json>` or `STOP <reason>`.
+   - `report.fifo` (session→daemon): `REPORT result=<r> issue=<N>`.
+   The daemon only **surfaces the prioritized candidate queue**; it does not pick the issue.
+2. **Agent session — the cognitive worker (host-neutral: OpenCode, Codex, or Claude Code).** It reads a round, **LLM-PICKS** which issue to do (the agent decides; the daemon merely surfaces candidates), runs the consensus protocol via the **host's native subagents**, and performs **every git/GitHub mutation through the verb layer `bin/auto-api.sh`** (verbs: `queue`/`prep`/`commit`/`finish`/`escalate`/`release`/`kill-check`/`status`). It **never calls `git`/`gh` directly**.
 
-The **session is the orchestrator**: the `/auto:sa-implement` SKILL.md sequences each iteration (gate → prep → EXECUTE → finish), running the cognitive EXECUTE step itself by spawning the role subagents (a shell cannot spawn in-session subagents). The **state machine** lives in GitHub (issues + labels + PRs) per HC7. Local files under `.auto/` are **disposable cache** and are **never committed**.
+**Deterministic engine (shell, `git`+`gh` only).** Preflight, queue selection, claim/lease, branch policy, commit gate, gitleaks, PR creation (base-locked), CI-parity, auto-merge-when-green, escalation, kill-switch, state. Every mutating/safety step is here, reached only through `bin/auto-api.sh`; the session **cannot bypass it** (it is also backed server-side by `develop-auto` branch protection + the `auto-base-guard` CI).
 
-### High-level loop (one iteration = one issue; the SESSION sequences it)
+**Role subagents (host-native `agents/*.md`).** The 12 roles ship in the package and are spawned by the **host's native subagent mechanism**; each carries its own `tools:` grant (writers get Edit/Write; reviewers are read-only). No adapter, no injected prompt fragments. *(A fallback for hosts without native subagents — the daemon spawning extra agent processes to vote in consensus — exists but is **to be wired later**; the primary path uses native subagents.)*
+
+The **state machine** lives in GitHub (issues + labels + PRs) per HC7. Local files under `.auto/` are **disposable cache** and are **never committed**.
+
+### High-level loop (one iteration = one issue)
 ```
-preflight → gate(should_continue)
-  → prep:    select+claim issue → worktree+branch from develop-auto   (auto-iterate.sh --phase prep)
-  → EXECUTE (session): size→routing, spawn auto:<role> subagents, BOUNDED rounds,
-             commit each accepted change via commit-gate.sh (conventional, gitleaks, no co-author, build-per-commit)
-  → finish:  push → PR (base=develop-auto, hard-locked + verified) → auto-merge-when-green  (auto-iterate.sh --phase finish)
-  → close issue / escalate → release claim → next iteration (or stop)
+daemon: gh auth switch --user <account> → preflight → poll queue
+  ── work.fifo: ROUND <n> <queue-json> ──▶ session
+session: LLM-PICK issue → auto-api.sh prep   (select+claim → worktree+branch from develop-auto)
+  → EXECUTE: consensus via host-native subagents, BOUNDED rounds,
+             commit each accepted change via auto-api.sh commit (conventional, gitleaks, no co-author, build-per-commit)
+  → auto-api.sh finish   (push → PR base=develop-auto, hard-locked + verified → auto-merge-when-green)
+  → close issue / auto-api.sh escalate → auto-api.sh release claim
+  ── report.fifo: REPORT result=<r> issue=<N> ──▶ daemon
+daemon: next ROUND while work exists; else idle-poll ~15m  (or STOP <reason>)
 ```
 
 ---
@@ -76,10 +86,10 @@ A PR author cannot self-approve, so any `required_approving_review_count ≥ 1` 
 
 ---
 
-## 3. Concurrency model, claim protocol, kill-switch (HC7)
+## 3. Serial loop, claim protocol, kill-switch (HC7)
 
-### 3.1 Concurrency decision (resolves the single-writer vs N-parallel contradiction)
-**Authoritative model: `--concurrency N` parallelizes ISSUES** — up to N issues worked simultaneously, each in its own worktree, each its own PR. (Subagent fan-out *within* an issue is separate and always flat/depth-1.) The "single global lease" idea from one lens is **rejected**; instead each **issue** carries its own lease. A small global ceiling prevents `/loop`+cron+multi-host from jointly exceeding N. *(This is presented to the user for confirmation as OQ; the scripts default to per-issue leases with `--concurrency` = parallel issues.)*
+### 3.1 One-issue-at-a-time loop
+The loop works **exactly ONE issue at a time** — select+claim, take it through to PR, release, then move on. (Subagent fan-out *within* an issue is separate and always flat/depth-1.) There is **no** in-process parallelism and no concurrency ceiling. The **per-issue claim/lease** is the single mutual-exclusion mechanism: it is what prevents two daemon instances (running on different clones) from double-working the same issue — the loser of the claim re-read + tie-break exits cleanly.
 
 ### 3.2 CAS-free claim — `bin/auto-claim.sh <issue#>`
 GitHub has no compare-and-swap on issue mutations, so:
@@ -87,7 +97,6 @@ GitHub has no compare-and-swap on issue mutations, so:
 - **Lease comment** (HTML-comment marker line with `runner=`, `ttl_seconds=`, `kind=claim|renew|reclaim|release`) is authoritative; the label `auto:claimed` is a cheap pre-filter; assignee is cosmetic.
 - **Win by re-read + deterministic tie-break:** after a 1–3s jitter, re-read the comment set; among **live** leases (server `createdAt + ttl > now`): a `kind=reclaim` (newest) supersedes; else **oldest `createdAt`** wins (ties by lexicographic `runnerId`). Loser self-retracts. An expired/revived dead runner is never in the live set → cannot win → must re-claim.
 - **Stale reclaim** (`bin/auto-stale.sh`): newest live lease older than `AUTO_LEASE_TTL` (default 30m, heartbeat at TTL/2) AND **no open PR for the issue** AND issue still OPEN/not-blocked.
-- **Global ceiling (TOCTOU acknowledged):** `--concurrency` is enforced *probabilistically* across processes via `gh issue list --label status:in-progress` count + local worktree count. This read-then-act races; the design **accepts** occasional 1-over-cap and relies on the per-issue claim to prevent double-work on the *same* issue. (Flagged honestly; not papered over.)
 - **Idempotent PR creation:** before `gh pr create`, check both `gh pr list --base develop-auto --head <branch>` (exact head match, strongly consistent via refs) **and** the `Closes #N` search (eventually-consistent, best-effort). The **head-branch existence check is authoritative** (the search is advisory) — this strengthens the racy `Closes #N`-only approach the lenses used.
 
 ### 3.3 Release & escalation — `bin/auto-release.sh <issue#> <reason>` (always via shell `trap EXIT INT TERM`)
@@ -103,7 +112,7 @@ A single function `bin/auto-kill.sh` (cached 20s/process), checked at **five poi
 1. **PRIMARY** — label `auto:stop` present on the pinned **control issue** `#auto-control` (one tap on GitHub mobile, or `gh issue edit <ctrl#> --add-label auto:stop`).
 2. **FALLBACK** — file `.auto/STOP` exists **on the `develop-auto` branch**, read remotely via `gh api repos/:o/:r/contents/.auto/STOP?ref=develop-auto` (so local ignore is irrelevant).
 
-The repo-variable `AUTO_KILL` source (poor mobile UX, needs Actions scope) and title-convention source are **dropped**. Kill is cooperative: the current atomic commit finishes (buildable-per-commit), then the iteration releases its claim and exits. Resume = remove `auto:stop` / delete `.auto/STOP`; next loop/cron tick auto-resumes.
+The repo-variable `AUTO_KILL` source (poor mobile UX, needs Actions scope) and title-convention source are **dropped**. Kill is cooperative: the current atomic commit finishes (buildable-per-commit), then the iteration releases its claim and exits. Resume = remove `auto:stop` / delete `.auto/STOP`; the daemon's next poll tick auto-resumes.
 
 ### 3.6 Control-issue lifecycle (resolves per-run vs repo-global ambiguity)
 `#auto-control` is a **single repo-global, permanent** pinned issue created once by preflight (idempotent: locate-or-create). The `auto:stop` label lives on it and is **repo-global** — it halts whatever run is active and any future run until removed. The **per-run status dashboard** is a *separate* issue (`auto:status`, titled with `run_id`), updated each iteration, unpinned on terminal state. So: one permanent control/kill issue + one per-run status issue. A new `/auto` invocation that finds `auto:stop` still set on `#auto-control` aborts at gate point 1 with a clear message (this is intended — a human kill persists across runs).
@@ -157,7 +166,7 @@ stays in the member's own transcript.
   gate. Each agent owns its bias prompt in `agents/<role>.md`.
 
 ### 5.3 Write-access enforcement (honors user critical-rules)
-Each role's tool grant lives in its native subagent file `agents/<role>.md` `tools:` frontmatter — applied automatically by Claude Code when the session spawns `auto:<role>` (the session passes no tool string):
+Each role's tool grant lives in its native subagent file `agents/<role>.md` `tools:` frontmatter — applied automatically by the host agent when the session spawns the role via the host's native subagent mechanism (the session passes no tool string):
 - **Write-capable** (`implement-backend`, `implement-frontend`, `write-documentation`): `Read, Edit, Write, Bash, Grep, Glob`.
 - **Read-only** (the design solvers, the meta-judge, the review triplet, debug, secrets-leaks): `Read, Grep, Glob` — no Edit/Write/Bash, so they **physically cannot mutate the repo or run commands**. They emit findings on stdout (their returned summary); the session feeds them the scoped diff. Persistence is delegated to `auto:write-documentation`.
 
@@ -186,11 +195,11 @@ Abort-on-fail; each failure prints the **exact** unmet condition and exits non-z
 - **A8** WARN (not abort) if auto token has admin that could bypass checks; record `--admin` is never used.
 - **A9** `allow_squash_merge` is true on repo (we squash).
 - **A10** `gitleaks` installed → else ABORT (commit gate would silently skip secret scan).
-- **A11** account selection deterministic: the ACTIVE local gh login resolved and snapshotted (optional `AUTO_GH_ACCOUNT` pin asserted; §6.4); if a second-approver flow is configured, the approver account ≠ author account.
+- **A11** account selection deterministic: after the daemon's single start-of-run `gh auth switch --user <account>`, the resolved gh login is snapshotted and `AUTO_GH_ACCOUNT` asserted to match (§6.4); if a second-approver flow is configured, the approver account ≠ author account.
 - **A12** kill-switch not currently set (`auto:stop` absent on `#auto-control`, `.auto/STOP` absent on `develop-auto`) — else abort with "kill-switch is engaged; clear it to start."
 
-### 6.4 Account selection (follows the local gh login)
-`/auto` runs as **the installing user's ACTIVE local gh account**, resolved at run start (`gh api user`), exported for the run, and snapshotted to `.auto/.account`; every mutation boundary re-asserts it and **hard-refuses mid-run drift** (`EX_PREFLIGHT_ACCOUNT=69`). The engine **never runs `gh auth switch`** and never mutates machine-global gh/git state — a prerequisite for the supported multi-instance mode (one loop per project directory, concurrently). `AUTO_GH_ACCOUNT` is an **optional operator pin**: when exported, preflight asserts the active login matches and aborts otherwise (the human performs any switch). Roles stay distinct: **claim-lock account** = author account = the resolved run account; **approver account** (only if `develop-auto` requires reviews) = a *different* account via `AUTO_APPROVER_TOKEN`. Commit identity = the user's git config, with a GitHub-noreply fallback derived from the login only when git has no identity configured. Tokens are **env/keychain only**, never committed; `.gitignore` covers `.env`, `.env.*`, `*.pem`, `*.key`, `credentials.json`, and `gitleaks` is configured with a rule to catch `gho_`/`ghp_`/`github_pat_` tokens.
+### 6.4 Account selection (operator-supplied; one switch at start)
+The operator passes the target account as the `<gh-account>` argument to `/sa-implement`. The **daemon performs exactly ONE `gh auth switch --user <account>` at start** — the operator passing the account argument **IS the authorization to switch**. After that switch the engine behaves as before: it resolves the now-active login (`gh api user`), snapshots it to `.auto/.account`, and every mutation boundary re-asserts it and **hard-refuses any later mid-run drift** (`EX_PREFLIGHT_ACCOUNT=69`). Beyond the single start-of-run switch, the engine never mutates machine-global gh/git state mid-run. `AUTO_GH_ACCOUNT` remains meaningful as the resolved/expected account: once the switch has happened it is the snapshotted run account, and preflight asserts the active login matches and aborts otherwise. Roles stay distinct: **claim-lock account** = author account = the resolved run account; **approver account** (only if `develop-auto` requires reviews) = a *different* account via `AUTO_APPROVER_TOKEN`. Commit identity = the user's git config, with a GitHub-noreply fallback derived from the login only when git has no identity configured. Tokens are **env/keychain only**, never committed; `.gitignore` covers `.env`, `.env.*`, `*.pem`, `*.key`, `credentials.json`, and `gitleaks` is configured with a rule to catch `gho_`/`ghp_`/`github_pat_` tokens.
 
 ---
 
@@ -202,37 +211,24 @@ Abort-on-fail; each failure prints the **exact** unmet condition and exits non-z
 ### 7.2 Cold-start safety
 Top of every iteration re-derives 100% of the working set from `gh` queries + the work issue's lease comment; nothing relies on carried agent context. `status:in-progress` label + open PR + lease comment are the redundant in-flight markers. `kill -9` between any two steps leaves a resumable state; commit-early/push-early means at most one un-pushed phase is redone.
 
-### 7.3 Claude Code 双保险
-- **Primary** — `/loop` **self-paced** (no fixed interval; iteration durations vary 20×). Re-arms immediately after each iteration exits.
-- **Watchdog** — durable cron `/schedule` (`CronCreate(durable:true,recurring:true)`), cadence `7,17,27,37,47,57 * * * *` (10-min, off-zero). It is a **resurrection check, not a runner**: read state; if active and the loop is dead (lease stale / heartbeat old), relaunch `/loop`. Handles the **7-day durable-cron expiry** by self-re-arming within ~12h of expiry (stores `cron_id`/`expires_utc`). The 7-day limit is surfaced to the user at start.
-- **Hand-off without double-fire:** the **per-issue claim is the single mutual-exclusion mechanism** (no separate channel). Both `/loop` and cron run the identical claim protocol; the loser exits cleanly. (We do **not** introduce a second global git-CAS lease — that conflicted with `--concurrency`>1; the additive-comment per-issue lease is the one model.)
+### 7.3 Daemon-driven continuity
+- **Single continuity mechanism** — the bash daemon `bin/auto-daemon.sh` owns the loop's cadence. While work exists it is **report-driven**: it pushes a `ROUND <n> <queue-json>` over `work.fifo`, then **blocks awaiting the session's `REPORT`** over `report.fifo` before pushing the next round. When the queue is empty it **idle-polls every ~15 minutes** until work reappears (or a `STOP <reason>` condition fires).
+- **Triggering the session:** the daemon does not pick issues; it surfaces the prioritized candidate queue in the round payload and the agent session LLM-picks. The daemon resurrects the loop deterministically after any session exit/crash — the next round simply re-derives the working set cold from GitHub.
+- **Hand-off without double-fire:** the **per-issue claim is the single mutual-exclusion mechanism** (no separate channel). Any concurrent daemon/session instance runs the identical claim protocol; the loser exits cleanly. (We do **not** introduce a second global git-CAS lease — the additive-comment per-issue lease is the one model.)
 
 ### 7.4 Context management (native)
-Each role **subagent** runs in its own context window, so heavy analysis/implementation is isolated off the session — the session keeps only the small per-round summaries the subagents return. If the session itself nears its window during a long iteration, `/loop` re-arms a fresh slice that resumes the SAME issue cold from GitHub + the worktree (existing commits / open PR). There is no shell-level context-budget guard or re-arm sentinel any more — that was only needed to babysit headless `claude -p` workers.
+Each role **subagent** runs in its own context window, so heavy analysis/implementation is isolated off the session — the session keeps only the small per-round summaries the subagents return. If the session itself nears its window during a long iteration, the next daemon `ROUND` resumes the SAME issue cold from GitHub + the worktree (existing commits / open PR). There is no shell-level context-budget guard or re-arm sentinel any more — that was only needed to babysit headless `claude -p` workers.
 
 ### 7.5 Logging (user logging rule)
 Append-only NDJSON journal in **local** `.auto/log/YYYY-MM-DD.ndjson` (disposable; never committed) at INFO (lifecycle), DEBUG (flow, gated by `--verbose`), ERROR (failures with `issue`/`phase`/`cause`). ERROR events also drop a comment on the per-run status issue for visibility. The agent never reads the journal back into context.
 
-### 7.6 Continuity (native)
-Continuity is `/loop` (in-session pacing) + `/schedule` (a durable cloud-cron routine that resurrects the loop out-of-session, even with the user's machine off). Both run the identical per-issue claim and the identical kill-switch; the per-issue lease is the single mutual-exclusion mechanism (the loser exits cleanly). There is no `claude -p` subprocess and no external `auto-driver.sh`/`auto-watchdog.sh` while-loop/system-cron (those were the multi-CLI portability fallback and have been removed). `bin/auto-iterate.sh --phase prep|finish` is still pure `git`+`gh` and could be driven by an external scheduler if ever needed, but `/loop`+`/schedule` are the supported path.
+### 7.6 Continuity (daemon)
+Continuity is the bash daemon `bin/auto-daemon.sh` alone — a deterministic, long-running process that owns the loop's cadence (report-driven while work exists; ~15-minute idle-poll when the queue is empty), switches `gh` to the operator-supplied account once at start, runs preflight, polls the issue queue, and triggers the agent session over the `work.fifo`/`report.fifo` pair under `.auto/daemon/`. There is **no** in-session `/loop` and **no** out-of-session cron/`/schedule` routine — the daemon is the single continuity mechanism, and the per-issue lease is the single mutual-exclusion mechanism (any concurrent instance's loser exits cleanly). The engine verbs behind `bin/auto-api.sh` (`prep`/`finish`/…) remain pure `git`+`gh` and could in principle be driven by another scheduler, but the daemon is the supported path.
 
 ---
 
-## 8. `--seed` / triage pass
-Converts repo signals (TODO/FIXME/HACK/XXX via `git grep`; failing/skipped tests; README/doc gaps; dependency drift/advisories) + `--context` brain-dump into structured, prioritized, **deduplicated** issues filed through the Issue Forms. **Dedup** via a hidden, **location-stable** fingerprint marker `<!-- auto-seed-fp: <sha1> -->` (key = relpath+symbol/section/test-id/package; **never** line numbers or versions). Re-seed skips open fingerprints; skips closed unless `--reseed-closed`. Seeded brain-dump/under-specified items stay `status:triage` (human confirms before `auto:eligible`); only fully-specced items reach `status:ready`+`auto:eligible`. `--dry-run` prints the create/skip decision table and mutates nothing.
-
----
-
-## 9. `--context`, `--dry-run`, cost ceiling — full arg semantics (HC8, closes gaps)
-
-### 9.1 `--context` (always-on brain-dump, distinct from `--seed`)
-Carried by the session and **injected into every subagent prompt it spawns** (implementers + reviewers) as a "standing operator guidance" block. Optionally also written to the repo-root `CLAUDE.md` static-conventions section *only* via the `auto:write-documentation` role inside a normal PR (never a direct push). It is advisory steering, never overrides hard constraints.
-
-### 9.2 `--dry-run` (end-to-end semantics — was only defined for seed)
-Runs the **full pipeline up to but not including any remote mutation**: preflight (read-only) → gate → select+**simulate** claim (no label/comment writes) → engine **planning only** (subagents may run read-only analysis/architecture; **no file writes, no commits**) → print the *intended* branch name, commit plan, PR title/body, and the parity/auto-merge decision. **No-ops under `--dry-run`:** issue claim writes, branch push, commits, `gh pr create`, auto-merge, escalation issue creation, label mutations. Preflight assertions still run (read-only) and still **abort** on unmet prereqs so dry-run is a faithful rehearsal.
-
-### 9.3 Stop conditions (no cost ceiling)
-The stop conditions are `--duration`/`--until`, `--max-prs`, and `--max-escalations`, plus the kill-switch. There is **no cost ceiling**: `--max-cost`/`--max-tokens` are accepted as reserved no-op flag names (so usage strings don't break) but do nothing — token accounting belonged to the old headless-adapter path. If the user asks for a cost ceiling, offer `--max-prs`/`--duration` instead.
+## 8. Stop conditions & arg semantics (HC8)
+The stop conditions are `--duration`/`--until`, `--max-prs`, and `--max-escalations`, plus the kill-switch. Theme selection is `--theme/--label`. There is **no cost ceiling**: `--max-cost`/`--max-tokens` are accepted as reserved no-op flag names (so usage strings don't break) but do nothing — token accounting belonged to the old headless-adapter path. If the user asks for a cost ceiling, offer `--max-prs`/`--duration` instead.
 
 ---
 
@@ -256,39 +252,39 @@ The `.auto/STOP` kill sentinel, when used, is created **on the `develop-auto` br
 
 ---
 
-## 11. Distribution — Claude Code plugin + marketplace (HC2)
-`/auto` ships as ONE plugin in a same-repo marketplace (verified against the Claude Code plugin docs):
+## 11. Distribution — host-neutral skill package (HC2)
+`/sa-implement` ships as ONE host-neutral **skill package** — a plain directory, not a plugin and with no marketplace:
 
-- **Layout (nested, mandated):** repo-root `.claude-plugin/marketplace.json` (entry `source: "./plugins/auto"`) + the plugin at `plugins/auto/` with its own `.claude-plugin/plugin.json`. Component dirs (`skills/`, `agents/`, `bin/`, `lib/`, `templates/`, `references/`) sit at the plugin root, NOT inside `.claude-plugin/`.
-- **One-step install:** `/plugin marketplace add sh1ningwang/auto` → `/plugin install auto@auto`. This installs BOTH skills (`/auto:sa-design`, `/auto:sa-implement`), all `auto:<role>` subagents, and the `bin/`+`lib/` engine together — one bundle, one update, no extra registration.
-- **Invocation:** plugin components are **always namespaced**, so the user runs **`/auto:sa-design`** / **`/auto:sa-implement`** (never bare `/sa-…`) and the orchestrator spawns role workers by scoped name **`auto:<role>`** (this also disambiguates from any same-named personal skills the user has).
-- **Runtime paths:** `${CLAUDE_PLUGIN_ROOT}` resolves to the installed plugin root; SKILL.md uses `${CLAUDE_PLUGIN_ROOT}/bin` + `/lib` to call the engine (replacing the old `readlink` self-location).
-- **No adapter, no `--agent`, no headless `claude -p`.** Role workers are in-session subagents spawned via the Agent tool; the session is the host. (The previous four-capability `define-skill`/`spawn-subagent`/`headless-invoke`/`re-arm` adapter contract existed only to drive *other* CLIs and has been removed.)
+- **Layout:** a single package directory containing `SKILL.md` + `bin/` + `lib/` + `agents/` + `references/` + `templates/`. There is no `.claude-plugin/marketplace.json`, no `plugins/auto/` nesting, and no per-host registration step.
+- **Install:** drop the package directory in place (or clone the repo) and set `AUTO_HOME` to the package's own base directory per the SKILL.md instructions. This makes BOTH skills (`/sa-design`, `/sa-implement`), all role subagents, the bash daemon, and the `bin/`+`lib/` engine available together — one bundle, one update.
+- **Invocation:** **`/sa-implement <repo-url> <gh-account>`** (two args) and **`/sa-design`**. The agent session spawns role workers via the **host's native subagent mechanism** (OpenCode, Codex, or Claude Code). *(A fallback for hosts without native subagents — the daemon spawning extra agent processes to vote in consensus — is **to be wired later**.)*
+- **Runtime paths:** `AUTO_HOME` resolves to the package base directory; SKILL.md uses `${AUTO_HOME}/bin` + `/lib` to call the engine (replacing the old `readlink` self-location and the former `${CLAUDE_PLUGIN_ROOT}`).
+- **No adapter, no `--agent`, no headless `claude -p`.** Role workers are host-native subagents; the agent session is the cognitive worker, the bash daemon owns cadence, and all mutations go through `bin/auto-api.sh`. (The previous four-capability `define-skill`/`spawn-subagent`/`headless-invoke`/`re-arm` adapter contract existed only to drive *other* CLIs and has been removed.)
 
 ---
 
-## 12. Repo / plugin layout
+## 12. Skill package layout
 ```
-auto/                                  # repo root = marketplace
-├── .claude-plugin/marketplace.json    # lists the "auto" plugin (source ./plugins/auto)
-└── plugins/auto/                      # the plugin (= ${CLAUDE_PLUGIN_ROOT})
-    ├── .claude-plugin/plugin.json
-    ├── skills/sa-design/SKILL.md      # /auto:sa-design — context → fully-specced, tagged issues
-    ├── skills/sa-implement/SKILL.md   # /auto:sa-implement — the implement-loop orchestrator (ex /auto:auto)
-    ├── agents/<role>.md               # the 12 native role subagents (auto:<role>)
-    ├── bin/  lib/                      # the deterministic git+gh engine
-    ├── templates/.github/             # issue forms (feature/bug/chore), PR template, labels, auto-base-guard
-    └── references/                    # this design doc + conventions + state-model
+sa-implement/                          # the skill package (= AUTO_HOME)
+├── SKILL.md                           # /sa-implement <repo-url> <gh-account> — the implement-loop entry
+├── agents/<role>.md                   # the 12 host-native role subagents
+├── bin/
+│   ├── auto-daemon.sh                 # the bash daemon (owns cadence/triggering; work.fifo/report.fifo)
+│   ├── auto-api.sh                    # the verb layer (queue/prep/commit/finish/escalate/release/kill-check/status)
+│   └── …                              # the rest of the deterministic git+gh engine
+├── lib/                               # shared shell helpers (roles.sh, etc.)
+├── templates/.github/                 # issue forms (feature/bug/chore), PR template, labels, auto-base-guard
+└── references/                        # this design doc + conventions + state-model
 ```
-No `adapters/` (removed). The deterministic engine (`bin/`+`lib/`) is unchanged by packaging — it is plain `git`+`gh` shell and is callable by `cron`/`launchd` directly if ever wanted.
+(The companion `/sa-design` skill ships alongside as its own package directory.) No `adapters/` and no `.claude-plugin/` (removed). The deterministic engine (`bin/`+`lib/`) is unchanged by packaging — it is plain `git`+`gh` shell, reached only through `bin/auto-api.sh`, and the bash daemon drives it.
 
 ---
 
 ## 13. Resolved contradictions (summary)
 | Conflict | Resolution |
 |---|---|
-| Concurrency: single global lease vs N parallel | **`--concurrency` = parallel ISSUES, per-issue lease** (subagents always flat within an issue). |
-| Label taxonomy (3 namespaces) | **One canonical taxonomy** (§ labels.json): `priority:*`, `type:*`, `size:*`, `status:*`, `auto:{eligible,claimed,hold,stop,seeded,status}`, flat `blocked`. All other lens variants dropped. |
+| Concurrency | **Single issue at a time; per-issue lease** (the lease prevents two daemon instances on different clones from double-working one issue; subagents always flat within an issue). |
+| Label taxonomy (3 namespaces) | **One canonical taxonomy** (§ labels.json): `priority:*`, `type:*`, `size:*`, `status:*`, `auto:{eligible,claimed,hold,stop,status}`, flat `blocked`. All other lens variants dropped. |
 | Escalation re-queue | **Human-gated** (`auto:hold`+`status:triage`), never auto-eligible; `--max-escalations` ceiling. |
 | Claim mechanism | **Additive lease-comment + deterministic tie-break** (one model); git-CAS-on-state.json rejected. |
 | State location | **GitHub durable; `.auto/` disposable, never committed.** |
@@ -298,7 +294,7 @@ No `adapters/` (removed). The deterministic engine (`bin/`+`lib/`) is unchanged 
 | gitleaks presence | **Hard preflight A10 + enforced commit gate**, plus independent `review-secrets-leaks` subagent. |
 | Co-author leak via squash | **Empty scrubbed squash body + commit-gate reject of `Co-Authored-By` on every commit.** |
 | Green-on-nothing | **GREEN FLOOR (A7'): non-empty required-check set required for any auto-merge.** |
-| Two accounts | **Deterministic: the ACTIVE local gh login, snapshotted per run (optional `AUTO_GH_ACCOUNT` pin asserted); approver ≠ author when reviews required.** |
+| Two accounts | **Deterministic: daemon does ONE `gh auth switch` to the operator-supplied account at start, snapshots it (`AUTO_GH_ACCOUNT` asserted), refuses drift; approver ≠ author when reviews required.** |
 
 Items that **must be confirmed by the user before build** are in `openQuestionsForUser`.
 

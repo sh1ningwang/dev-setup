@@ -6,7 +6,7 @@ PR against **`develop-auto`**, and auto-merges when CI is 100% green — then mo
 the next issue, until you stop it.
 
 This document is the operator runbook: **how to stop it**, the **label state
-machine**, the **seed pass**, and the **one-time bootstrap** that must be done by a
+machine**, and the **one-time bootstrap** that must be done by a
 human before `/auto` can run. (Everything machine-readable lives in
 `labels.json`, `auto.config.json`, and `lib/constants.sh`.)
 
@@ -49,7 +49,7 @@ gh api -X PUT repos/:owner/:repo/contents/.auto/STOP \
 ### RESUME
 
 Remove the `auto:stop` label **and** delete `.auto/STOP` (whichever you set). The
-next `/loop` tick or cron watchdog auto-resumes. A fresh `/auto` invocation **will
+next daemon poll round re-triggers the agent session and the run auto-resumes. A fresh `/auto` invocation **will
 refuse to start** while either signal is set (preflight A12) — this is intentional.
 
 > The kill-switch is the **only** way to stop a healthy run cleanly besides the
@@ -74,7 +74,6 @@ bash .github/auto/install-labels.sh
 | | `auto:claimed` | A lease is held (lease comment + assignee). Do not touch. |
 | | `auto:hold` | Human-gated. `/auto` must NOT pick it (used for escalations). |
 | | `auto:stop` | Kill-switch. On the pinned `#auto-control` issue ONLY. |
-| | `auto:seeded` | Filed by the `--seed` pass (carries a fingerprint marker). |
 | **Lifecycle** `status:*` | `triage` → `ready` → `in-progress` → `in-review` → `done` | Normal flow. |
 | | `status:blocked` | Failed/blocked; needs a human. |
 | **Priority** | `priority:P0..P3` | P0 highest, P2 default. |
@@ -90,7 +89,7 @@ priority (P0→P3), then size (smaller first), then issue age.
 ### Lifecycle transitions
 
 ```
-status:triage  ──(human/seed: fully specced)──▶  status:ready + auto:eligible
+status:triage  ──(human: fully specced)──────▶  status:ready + auto:eligible
 status:ready   ──(/auto claims)──────────────▶  status:in-progress + auto:claimed
 status:in-progress ──(PR opened)─────────────▶  status:in-review
 status:in-review   ──(CI green, auto-merge)──▶  status:done + issue closed (Closes #N)
@@ -104,38 +103,12 @@ and does **not** re-enter the queue. A run-wide `--max-escalations` ceiling
 
 ---
 
-## 3. Seeding the backlog (`--seed`)
-
-`--seed` turns latent work into structured, deduplicated issues using the Issue
-Forms, then files them.
-
-```bash
-/auto --seed                          # scan repo signals, file issues
-/auto --seed --context "@notes.md"    # also turn a brain-dump into issues
-/auto --seed --label area:cli         # scope + tag every seeded issue
-/auto --seed --dry-run                # print the create/skip table; mutate nothing
-```
-
-**Signals scanned:** `TODO`/`FIXME`/`HACK`/`XXX` comments, failing/skipped tests,
-README/doc gaps, dependency drift/advisories, plus each bullet of `--context`.
-
-**Dedup:** every seeded issue body ends with a hidden, location-stable fingerprint
-`<!-- auto-seed-fp: <sha1> -->`. Re-seeding **skips** open fingerprints and skips
-closed ones (re-file closed only with `--reseed-closed`), so re-running `--seed` is
-safe and idempotent.
-
-**Triage gate:** brain-dump and under-specced items are filed `status:triage` (a
-human promotes them to `status:ready` + `auto:eligible`). Only fully-specced items
-become eligible automatically.
-
----
-
-## 4. Bootstrap (one-time, human-only)
+## 3. Bootstrap (one-time, human-only)
 
 `/auto` **never** auto-creates branches or CI. Preflight aborts with the exact
 unmet condition if any prerequisite below is missing. Do these once:
 
-### 4.1 Branches — both `develop` and `develop-auto` on origin
+### 3.1 Branches — both `develop` and `develop-auto` on origin
 
 ```bash
 git fetch origin
@@ -147,7 +120,7 @@ git switch -c develop-auto origin/develop && git push -u origin develop-auto
 
 `/auto` targets `develop-auto` only; humans promote `develop-auto` → `develop`.
 
-### 4.2 Account
+### 3.2 Account
 
 All git/gh operations run as **the account that is active in your local `gh`
 CLI** — the engine resolves it at run start, snapshots it, and hard-refuses if
@@ -165,7 +138,7 @@ gh auth status                          # confirm which account is ACTIVE — th
 gh auth switch --user <login>           # only if you want a different one (do this BEFORE launching)
 ```
 
-### 4.3 CI parity + the **green floor** (the most important step)
+### 3.3 CI parity + the **green floor** (the most important step)
 
 Two binding rules:
 
@@ -194,7 +167,7 @@ Two binding rules:
    The required-check set on `develop-auto` must match `develop`'s (parity binds
    checks, not review count).
 
-### 4.4 Repo settings & tooling
+### 3.4 Repo settings & tooling
 
 - Enable **squash merge** on the repo (`/auto` merges via squash).
 - Install `gitleaks` on every host that will run `/auto` (preflight aborts without
@@ -203,25 +176,20 @@ Two binding rules:
 - (Optional) Add the server-side backstop `auto-base-guard.yml` to
   `.github/workflows/` on `develop-auto` for defense-in-depth.
 
-### 4.5 Verify
+### 3.5 Verify
 
-```bash
-/auto --dry-run    # runs full preflight + a no-mutation rehearsal; aborts on any
-                   # unmet prerequisite and prints the exact condition to fix.
-```
-
-When `--dry-run` reports a clean decision table, you are ready to run `/auto`.
+`/auto` runs full preflight at the start of every invocation: it aborts on any
+unmet prerequisite above and prints the exact condition to fix before it mutates
+anything. When preflight passes, you are ready to run `/auto`.
 
 ---
 
-## 5. Quick reference
+## 4. Quick reference
 
 | Action | Command |
 |--------|---------|
 | Stop now | `gh issue edit <auto-control#> --add-label auto:stop` |
 | Resume | remove `auto:stop`; delete `.auto/STOP` |
-| Seed backlog | `/auto --seed` (add `--dry-run` to preview) |
-| Rehearse safely | `/auto --dry-run` |
 | Run for a while | `/auto --duration 8h` or `/auto --max-prs 5` |
 | Install labels | `bash .github/auto/install-labels.sh` |
 

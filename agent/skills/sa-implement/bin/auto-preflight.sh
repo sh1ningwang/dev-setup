@@ -17,17 +17,13 @@
 # ABORTS with the EXACT unmet condition (the assertion's "ABORT <code> <reason>"
 # line) and exits with that assertion's unique code. NEVER creates develop-auto.
 #
-# Under --dry-run (D2/architecture §9.2) the assertions still run (read-only) and
-# still abort on unmet prereqs, but the WRITE side-effects (label install, control
-# /status issue creation) are SKIPPED and reported as would-do.
-#
 # Usage:
-#   auto-preflight.sh [--run-id <id>] [--dry-run] [--no-status-issue]
+#   auto-preflight.sh [--run-id <id>] [--no-status-issue]
 #
 # Stdout (machine-parseable): the PASS/ABORT lines from each assertion, plus two
 # result lines on success:
 #   CONTROL_ISSUE <number>
-#   STATUS_ISSUE  <number|->        (- when --no-status-issue or --dry-run)
+#   STATUS_ISSUE  <number|->        (- when --no-status-issue)
 # Exit: 0 on full PASS; otherwise the failing assertion's exit code.
 #
 # Depends ONLY on: git, gh, jq, python3, gitleaks. Sources constants/log/preflight.
@@ -49,7 +45,6 @@ export AUTO_PHASE="preflight"
 # Args.
 # --------------------------------------------------------------------------- #
 RUN_ID=""
-DRY_RUN=0
 MAKE_STATUS_ISSUE=1
 
 print_help() {
@@ -60,7 +55,6 @@ print_help() {
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --run-id)          RUN_ID="${2:-}"; shift 2 ;;
-    --dry-run)         DRY_RUN=1; shift ;;
     --no-status-issue) MAKE_STATUS_ISSUE=0; shift ;;
     -h|--help)         print_help ;;
     *) log_error "preflight_bad_arg" "$1" "unknown argument"; exit "${EX_ERR}" ;;
@@ -72,7 +66,7 @@ if [[ -z "${RUN_ID}" ]]; then
 fi
 export AUTO_RUN_ID="${RUN_ID}"
 
-log_info "preflight_begin" "run=${RUN_ID} dry_run=${DRY_RUN}"
+log_info "preflight_begin" "run=${RUN_ID}"
 
 # Abort wrapper: run an assertion, and on non-zero exit IMMEDIATELY terminate with
 # that code (the assertion already printed its ABORT line + logged the cause).
@@ -112,7 +106,7 @@ if [[ -z "${OWNER_REPO}" ]]; then
 fi
 
 # --------------------------------------------------------------------------- #
-# Phase 2 — write side-effects (skipped under --dry-run).
+# Phase 2 — write side-effects.
 #   (a) install/refresh the label taxonomy (idempotent), via install-labels.sh.
 #   (b) locate-or-create the pinned #auto-control issue.
 #   (c) create the transient per-run status issue (unless suppressed).
@@ -205,28 +199,22 @@ EOF
 CONTROL_ISSUE=""
 STATUS_ISSUE="-"
 
-if [[ "${DRY_RUN}" -eq 1 ]]; then
-  log_info "preflight_dryrun" "skipping label install + control/status issue creation"
-  # Still LOCATE the control issue (read-only) so A12 is faithful.
-  CONTROL_ISSUE="$(locate_control_issue)"
+install_labels || { log_error "preflight_labels_fatal" "install" "label install failed"; exit "${EX_ERR}"; }
+
+CONTROL_ISSUE="$(locate_control_issue)"
+if [[ -z "${CONTROL_ISSUE}" ]]; then
+  CONTROL_ISSUE="$(create_control_issue)" || {
+    log_error "preflight_control_fail" "create" "could not create #auto-control"; exit "${EX_ERR}"; }
+  log_info "preflight_control" "created #auto-control #${CONTROL_ISSUE}"
 else
-  install_labels || { log_error "preflight_labels_fatal" "install" "label install failed"; exit "${EX_ERR}"; }
+  log_info "preflight_control" "located #auto-control #${CONTROL_ISSUE}"
+fi
 
-  CONTROL_ISSUE="$(locate_control_issue)"
-  if [[ -z "${CONTROL_ISSUE}" ]]; then
-    CONTROL_ISSUE="$(create_control_issue)" || {
-      log_error "preflight_control_fail" "create" "could not create #auto-control"; exit "${EX_ERR}"; }
-    log_info "preflight_control" "created #auto-control #${CONTROL_ISSUE}"
-  else
-    log_info "preflight_control" "located #auto-control #${CONTROL_ISSUE}"
-  fi
-
-  if [[ "${MAKE_STATUS_ISSUE}" -eq 1 ]]; then
-    STATUS_ISSUE="$(create_status_issue)" || {
-      log_error "preflight_status_fail" "create" "could not create per-run status issue"
-      STATUS_ISSUE="-"; }
-    [[ "${STATUS_ISSUE}" != "-" ]] && log_info "preflight_status" "created status issue #${STATUS_ISSUE}"
-  fi
+if [[ "${MAKE_STATUS_ISSUE}" -eq 1 ]]; then
+  STATUS_ISSUE="$(create_status_issue)" || {
+    log_error "preflight_status_fail" "create" "could not create per-run status issue"
+    STATUS_ISSUE="-"; }
+  [[ "${STATUS_ISSUE}" != "-" ]] && log_info "preflight_status" "created status issue #${STATUS_ISSUE}"
 fi
 
 # --------------------------------------------------------------------------- #

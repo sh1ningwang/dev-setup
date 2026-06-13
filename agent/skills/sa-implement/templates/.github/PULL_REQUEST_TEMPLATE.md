@@ -1,6 +1,6 @@
 <!--
 TITLE FORMAT (required): type(scope): summary (#N)
-  e.g.  feat(seed): add TODO scanner (#42)
+  e.g.  feat(parser): add TODO scanner (#42)
 This PR MUST target develop-auto. CI on develop-auto is byte-identical to develop.
 Do NOT add Co-Authored-By trailers to any commit (hard project rule).
 -->

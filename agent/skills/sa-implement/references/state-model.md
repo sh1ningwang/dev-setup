@@ -35,7 +35,7 @@ never destroys a winner's lease).
 ### 1.1 Lifecycle transitions
 
 ```
-            (filed: form / --seed)
+                  (filed: form)
                      │
                      ▼
               status:triage ──(human specs it: size + priority + acceptance)──▶ status:ready
@@ -61,7 +61,6 @@ never destroys a winner's lease).
 - `auto:claimed` is a cheap pre-filter for a held lease; the **lease comment is
   authoritative** (§2), the assignee is cosmetic.
 - `auto:stop` lives on the pinned `#auto-control` issue **only** and is repo-global (§3).
-- `auto:seeded` marks `--seed`-filed issues (carry a fingerprint marker, §5).
 - On a clean transition the prior `status:*` label is removed and the new one added; control
   labels (`auto:claimed`) are removed on release. `status:in-progress` + an open PR + the
   live lease comment are the **redundant in-flight markers** used for cold-start
@@ -71,9 +70,10 @@ never destroys a winner's lease).
 
 ## 2. Per-issue lease (claim protocol) — decisions.md §4
 
-`--concurrency N` parallelizes **issues** (decisions.md D8); each issue carries its **own**
-lease (not a single global lock). GitHub offers no compare-and-swap on issue mutations, so
-the claim is **CAS-free and additive**, resolved by deterministic tie-break.
+The loop works **one issue at a time**; the per-issue lease still prevents two daemon
+instances (on different clones) from double-working the same issue. GitHub offers no
+compare-and-swap on issue mutations, so the claim is **CAS-free and additive**, resolved by
+deterministic tie-break.
 
 ### 2.1 Claim = additive writes (`bin/auto-claim.sh <issue#>`)
 
@@ -127,22 +127,14 @@ source of truth.
   issue is still OPEN / not `status:blocked`. Reclaim posts `kind=reclaim` (newest →
   supersedes) and re-runs the tie-break.
 
-### 2.5 Global concurrency ceiling (TOCTOU-honest)
-
-`--concurrency` is enforced **probabilistically** across `/loop` + cron + multiple hosts as
-`count(gh issue list --label status:in-progress)` + local worktree count. This read-then-act
-races (no CAS); the design **accepts** occasional 1-over-cap and relies on the per-issue
-lease to prevent double-work on the *same* issue. Exceeding the ceiling at selection time
-exits `EX_CONCURRENCY=13`. Acceptable for the default N=1.
-
-### 2.6 Idempotent PR creation
+### 2.5 Idempotent PR creation
 
 Before `gh pr create`, check **both**: `gh pr list --base develop-auto --head <branch>`
 (exact head match, strongly consistent via refs — **authoritative**) and the `Closes #N`
 search (eventually-consistent — advisory). The head-branch existence check wins, closing the
 racy `Closes #N`-only window.
 
-### 2.7 Release (`bin/auto-release.sh <issue#> <reason>`, always via `trap EXIT INT TERM`)
+### 2.6 Release (`bin/auto-release.sh <issue#> <reason>`, always via `trap EXIT INT TERM`)
 
 | Outcome | Lease `kind` | Labels |
 |---------|--------------|--------|
@@ -182,9 +174,9 @@ issue + one transient per-run status issue.**
 ## 4. Kill-switch contract (decisions.md §4 — single canonical contract)
 
 A single function (`bin/auto-kill.sh`) is the **only** kill-switch check, used identically by
-both `/loop` (in-session) and the cron `/schedule` watchdog (out-of-session). Result is
+the daemon and by the agent session's in-iteration checks. Result is
 cached `AUTO_KILL_POLL_CACHE` (20s) per process in `AUTO_KILL_CACHE_FILE` to bound API calls
-under concurrency.
+across the per-iteration check-points.
 
 ### 4.1 Two signal sources (either ⇒ stop)
 
@@ -211,34 +203,26 @@ The kill-switch is checked at **exactly five** points each iteration:
 ### 4.3 Cooperative stop & resume
 
 Kill is **cooperative**: the current atomic commit finishes (buildable-per-commit invariant
-preserved), then the iteration releases its claim (§2.7) and exits cleanly. The gate
+preserved), then the iteration releases its claim (§2.6) and exits cleanly. The gate
 (`bin/auto-gate.sh`) prints `STOP kill-switch` (`AUTO_GATE_STOP` + `AUTO_STOP_REASON_KILL`).
 A fresh `/auto` that finds `auto:stop` set at start aborts at gate point 1 / preflight A12
 with `EX_PREFLIGHT_KILLSWITCH=2` (a clean refusal-to-start, not a misconfiguration — the
 driver treats `2` here as "clean stop", not "halt for human").
 
 **Resume** = a human removes `auto:stop` from `#auto-control` (or deletes `.auto/STOP` on
-`develop-auto`). The next `/loop` tick or cron watchdog tick auto-resumes from GitHub state.
+`develop-auto`). The next daemon round re-triggers and resumes from GitHub state.
 
 ---
 
-## 5. Re-arm & seed fingerprints
+## 5. Re-arm (context-limit continuity — architecture §7.4)
 
-### 5.1 Re-arm (context-limit continuity — architecture §7.4)
-
-There is **no** checkpoint comment and no shell-level re-arm budget. Context limits are
-handled natively: each role subagent runs in its own window (heavy work is isolated off the
-session), and if the session itself nears its window mid-iteration, `/loop` re-arms a fresh
-slice that resumes the **same** issue cold — purely from GitHub state (open PR by head +
-`status:in-progress` + the live lease comment) plus the worktree's existing commits. No
-phase pointer is persisted; nothing relies on carried agent context (§6).
-
-### 5.2 Seed dedup fingerprint (architecture §8)
-
-Each `--seed`-filed issue body ends with a hidden, **location-stable** fingerprint marker
-beginning with `AUTO_SEED_FP_PREFIX` (`<!-- auto-seed-fp:`) followed by a 40-hex sha1 of
-`kind + ":" + canonical_key` (key = relpath + symbol/section/test-id/package — **never** line
-numbers or versions). Re-seed skips open fingerprints; skips closed unless `--reseed-closed`.
+There is **no** checkpoint comment and no shell-level re-arm budget, and there is **no**
+`/loop` re-arm. Context limits are handled natively: each role subagent runs in its own
+window (heavy work is isolated off the session), and if the agent session itself nears its
+context window mid-issue, it **resumes the same issue cold** — purely from GitHub state (open
+PR by head + `status:in-progress` + the live lease comment) plus the worktree's existing
+commits — and the daemon re-triggers the next round via `work.fifo`. No phase pointer is
+persisted; nothing relies on carried agent context (§6).
 
 ---
 
@@ -259,19 +243,30 @@ rebuilt from GitHub if missing.
 
 ---
 
-## 7. Continuity (双保险) — decisions.md D10 / architecture §7.3
+## 7. Continuity (daemon) — decisions.md D10 / architecture §7.3
 
-On Claude Code, two redundant keep-alive mechanisms both run the **identical** per-issue claim
-protocol (§2) and check the **identical** kill-switch (§4):
+Continuity is a single mechanism: a long-running, deterministic **bash daemon**
+(`bin/auto-daemon.sh`) owns the loop's cadence and triggering. It is host-neutral — the
+cognitive worker is an interactive **agent session** (OpenCode, Codex, or Claude Code), which
+the daemon drives over two FIFOs under `.auto/daemon/`:
 
-- **Primary** — `/loop` (self-paced, in-session). Re-arms immediately after each iteration exits.
-- **Watchdog** — durable cron `/schedule` (`7,17,27,37,47,57 * * * *`, off-zero). A
-  **resurrection check, not a runner**: if the run is active and the loop is dead (lease stale /
-  heartbeat old), it relaunches `/loop`. Self-re-arms within ~12h of the 7-day durable-cron expiry.
+- **`work.fifo`** (daemon → session) — carries `ROUND <n> <queue-json>` to trigger a round,
+  or `STOP <reason>` to wind down.
+- **`report.fifo`** (session → daemon) — carries `REPORT result=<r> issue=<N>` when a round
+  completes.
 
-Hand-off has no separate channel: the per-issue claim is the single mutual-exclusion mechanism;
-the loser exits cleanly (`EX_CLAIM_LOST=11`). No second global git-CAS lease exists (it would
-conflict with `--concurrency > 1`).
+**Pacing** is report-driven while work exists: the daemon pushes a round on `work.fifo`, then
+blocks awaiting the `REPORT` on `report.fifo` before pushing the next. When the queue is
+empty it falls back to **idle-poll every ~15 minutes** of the GitHub issue queue until work
+reappears. The daemon and the agent session both check the **identical** kill-switch (§4); the
+session performs git/GitHub mutation only through the verb layer `bin/auto-api.sh`.
+
+This daemon is the **single** continuity mechanism — it replaces the earlier two-mechanism
+keep-alive (a self-paced in-session loop plus an out-of-session durable-cron resurrection
+watchdog), both of which are removed.
+
+Hand-off has no separate channel: the per-issue claim (§2) is the single mutual-exclusion
+mechanism; the loser exits cleanly (`EX_CLAIM_LOST=11`). No second global git-CAS lease exists.
 
 See `references/conventions.md` for branch/commit/label/routing/escalation rules and
-`references/architecture.md` for the engine design + plugin distribution.
+`references/architecture.md` for the engine design + daemon orchestration.

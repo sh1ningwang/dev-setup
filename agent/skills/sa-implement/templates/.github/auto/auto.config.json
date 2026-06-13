@@ -19,11 +19,6 @@
     "ghAccount": ""
   },
 
-  "concurrency": {
-    "$comment": "Default number of issues worked in parallel (each its own lease+worktree+branch+PR). Overrides AUTO_CONCURRENCY_DEFAULT=1. --concurrency on the CLI overrides this.",
-    "default": 1
-  },
-
   "rounds": {
     "$comment": "Per-size review-round overrides. Each is capped at the hard ceiling 5 (AUTO_ROUNDS_CEILING) regardless of this value. Defaults: S=1, M=2, L=3, XL=3.",
     "S": 1,

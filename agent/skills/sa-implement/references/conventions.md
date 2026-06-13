@@ -72,7 +72,7 @@ conventional commit on `develop-auto`. Subject = PR title; body scrubbed to empt
 The only valid label set. Defined as strings in `lib/constants.sh`; every query uses
 these exact names; `templates/.github/auto/labels.json` matches them exactly. Do **not**
 introduce `auto:queued`, `auto:in-progress`, `auto:blocked`, `auto:followup`,
-`auto:size/*`, a flat `blocked`, `auto-seeded` (hyphen), `type:test`, `type:perf`, or any
+`auto:size/*`, a flat `blocked`, `type:test`, `type:perf`, or any
 `status:*`/`auto:*` duplicate. Eligibility is `auto:eligible` vs `auto:hold`.
 
 | Group | Label | Meaning |
@@ -81,8 +81,7 @@ introduce `auto:queued`, `auto:in-progress`, `auto:blocked`, `auto:followup`,
 | | `auto:claimed` | A lease is held (paired with a lease comment + assignee). Do not pick up. |
 | | `auto:hold` | Human-gated; /auto must NOT pick (used for escalations). |
 | | `auto:stop` | Kill-switch. On the pinned `#auto-control` issue **only**. Halts pickup until a human removes it. |
-| | `auto:seeded` | Issue was filed by `--seed`; carries a hidden fingerprint marker. |
-| **Lifecycle (`status:*`)** | `status:triage` | Newly filed (often by `--seed`). Awaiting prioritization/sizing; not auto-pickable. |
+| **Lifecycle (`status:*`)** | `status:triage` | Newly filed. Awaiting prioritization/sizing; not auto-pickable. |
 | | `status:ready` | Fully specced (size + priority + acceptance criteria). Ready to implement. |
 | | `status:in-progress` | Implementation underway in an /auto iteration. |
 | | `status:in-review` | PR open against `develop-auto`, in bounded review rounds. |
@@ -238,4 +237,4 @@ env/keychain only — never committed) is reserved/unused in v1; preflight A6 ab
 (`EX_PREFLIGHT_REVIEW=65`) rather than relying on it.
 
 See `references/state-model.md` for the lease/kill-switch contracts and
-`references/architecture.md` for the engine design + plugin distribution.
+`references/architecture.md` for the engine design + daemon orchestration.

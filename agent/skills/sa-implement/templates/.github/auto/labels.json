@@ -3,9 +3,8 @@
   { "name": "auto:claimed",        "color": "FBCA04", "description": "A lease is held by an /auto run (paired with a lease comment + assignee). Do not pick up." },
   { "name": "auto:hold",           "color": "D93F0B", "description": "Human-gated. /auto must NOT pick this issue even if otherwise eligible (used for escalations)." },
   { "name": "auto:stop",           "color": "B60205", "description": "Kill-switch on the pinned #auto-control issue; presence halts all /auto pickup until removed." },
-  { "name": "auto:seeded",         "color": "D4C5F9", "description": "Issue was filed automatically by the --seed/triage pass. Carries a hidden fingerprint marker." },
 
-  { "name": "status:triage",       "color": "EDEDED", "description": "Newly filed (often by --seed). Awaiting prioritization/sizing; not yet auto-pickable." },
+  { "name": "status:triage",       "color": "EDEDED", "description": "Newly filed. Awaiting prioritization/sizing; not yet auto-pickable." },
   { "name": "status:ready",        "color": "0E8A16", "description": "Fully specced (size + priority + acceptance criteria). Ready to implement." },
   { "name": "status:in-progress",  "color": "FBCA04", "description": "Implementation underway in an /auto iteration." },
   { "name": "status:in-review",    "color": "D4C5F9", "description": "PR open against develop-auto, in bounded review rounds." },

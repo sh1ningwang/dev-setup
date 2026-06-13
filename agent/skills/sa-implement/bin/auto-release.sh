@@ -41,7 +41,7 @@
 #
 # Usage:
 #   auto-release.sh <issue#> <reason> [--outcome success|recoverable|hard]
-#                                     [--pr <url-or-#>] [--runner <id>] [--context <text>]
+#                                     [--pr <url-or-#>] [--runner <id>]
 #
 # Exit codes (decisions.md §6):
 #   0   release applied (or already released).
@@ -68,7 +68,6 @@ REASON=""
 OUTCOME=""        # success | recoverable | hard ; empty => infer from REASON.
 PR_REF=""
 RUNNER="${AUTO_RUNNER_ID:-}"
-EXTRA_CONTEXT=""
 
 print_help() {
   sed -n '3,/^[^#]/{ /^[^#]/d; s/^#\{1,2\} \{0,1\}//; p; }' "${BASH_SOURCE[0]}"
@@ -80,7 +79,6 @@ while [[ $# -gt 0 ]]; do
     --outcome) OUTCOME="${2:?--outcome requires a value}"; shift 2 ;;
     --pr)      PR_REF="${2:?--pr requires a value}"; shift 2 ;;
     --runner)  RUNNER="${2:?--runner requires a value}"; shift 2 ;;
-    --context) EXTRA_CONTEXT="${2?--context requires text}"; shift 2 ;;
     -h|--help) print_help ;;
     -*) log_error "release_args" "unknown-arg" "unknown argument: $1"; exit "$EX_ERR" ;;
     *)
@@ -218,9 +216,6 @@ ${PR_REF:+- **PR (left for review):** ${PR_REF}}
 This issue is **human-gated** (\`${AUTO_LABEL_HOLD}\` + \`${AUTO_LABEL_STATUS_TRIAGE}\`); \`/auto\`
 will NOT pick it up automatically. A human should triage, then either remove
 \`${AUTO_LABEL_HOLD}\` and add \`${AUTO_LABEL_ELIGIBLE}\` to re-enter the queue, or close it.
-${EXTRA_CONTEXT:+
-## Context
-${EXTRA_CONTEXT}}
 EOF
 )"
 

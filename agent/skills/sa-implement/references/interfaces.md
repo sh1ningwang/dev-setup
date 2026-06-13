@@ -6,8 +6,8 @@
 > **It is authored from the code as built.** Where this prose and `lib/constants.sh`
 > ever disagree, `constants.sh` wins (it is the string source of truth). Marker
 > strings, codes and timings mirror `constants.sh` and `references/state-model.md`
-> exactly. (Role workers are native `auto:<role>` subagents spawned by the session —
-> there is no adapter layer.)
+> exactly. (Role workers are `auto:<role>` subagents spawned by the agent session via
+> the host's native subagent mechanism — there is no adapter layer.)
 
 ---
 
@@ -23,7 +23,6 @@ A function/script that "logs ERROR + returns EX_*" propagates the code under `se
 | `EX_CHECK_FAIL` | 2 | Check / parity / build FAIL; also the value of `EX_PREFLIGHT_KILLSWITCH` (a pre-set kill switch is a clean refusal-to-start, not a misconfig). |
 | `EX_CLAIM_LOST` | 11 | Lost the claim race (a different runner holds / won the live lease). |
 | `EX_NOT_CLAIMABLE` | 12 | Issue not in a claimable state (closed / held / stopped / blocked / not eligible). |
-| `EX_CONCURRENCY` | 13 | Global concurrency ceiling reached. |
 | `EX_PREFLIGHT_ORIGIN` | 60 | A1: no GitHub `origin` remote. |
 | `EX_PREFLIGHT_AUTH` | 61 | A2: `gh` not authed / missing `repo`+`workflow` scopes. |
 | `EX_PREFLIGHT_BRANCHES` | 62 | A3: `develop` and/or `develop-auto` missing on origin. |
@@ -60,52 +59,100 @@ human/diagnostic lines to **stderr** via `log_*`. Mutating scripts call
 ### `auto-preflight.sh` — preflight orchestrator
 
 ```
-auto-preflight.sh [--run-id <id>] [--dry-run] [--no-status-issue]
+auto-preflight.sh [--run-id <id>] [--no-status-issue]
 ```
 
 - **stdin:** none.
 - **stdout:** the `PASS <id> <detail>` / `ABORT <code> <reason>` line from each
   assertion A1..A12, then on success two result lines: `CONTROL_ISSUE <number>` and
-  `STATUS_ISSUE <number|->` (`-` under `--no-status-issue` or `--dry-run`).
+  `STATUS_ISSUE <number|->` (`-` under `--no-status-issue`).
 - Runs A1, A2, A10 (account pin first), then A3..A9, A11; installs labels +
-  locates/creates `#auto-control` and the per-run status issue (skipped under
-  `--dry-run`); then A12. (No adapter self-test — role workers are native subagents.)
+  locates/creates `#auto-control` and the per-run status issue; then A12.
+  (No adapter self-test — role workers are native subagents.)
 - **exit:** `0` on full PASS; otherwise the failing assertion's unique code
   (`60..69`, or `2` for A12); `1` on bad arg / `60` if owner/repo unresolvable.
 
-### `auto-iterate.sh` — the deterministic phases of one iteration (prep / finish)
+### `auto-iterate.sh` — the deterministic finish phase of one iteration
 
 ```
-auto-iterate.sh --phase prep   [--theme <label>] [--concurrency <K>] [--context <text>]
-                               [--control <issue#>] [--status <issue#>] [--run-id <id>]
-                               [--repo <owner/repo>] [--dry-run] [--verbose]
 auto-iterate.sh --phase finish --issue <N> --worktree <path> [--branch <name>]
-                               [--control <issue#>] [--run-id <id>] [--context <text>]
-                               [--repo <owner/repo>] [--dry-run] [--verbose]
+                               [--control <issue#>] [--run-id <id>]
+                               [--repo <owner/repo>] [--verbose]
 ```
 
-- **prep** (phases A–D): cold-boot → select/resume → claim → branch+worktree. On success
-  leaves the claim LIVE (suppresses the release trap) for the session's EXECUTE + finish.
-  **stdout:** `PREP issue=<N|-> size=<S|M|L|XL|-> branch=<name|-> worktree=<path|-> reason=<token>`.
 - **finish** (phases F–G): push → base-locked PR → green squash-merge → release, with
   kill-checks before push and before PR open, and a crash-safe `success`-release recorded
   BEFORE the merge poll. **stdout:** `ITER <result> issue=<N|-> pr=<N|-> reason=<token>`,
-  `result ∈ {merged, pr-open, escalated, dry-run, error}`.
-- **EXECUTE** (between prep and finish) is the SESSION's job — it spawns the `auto:<role>`
-  subagents and commits each accepted change via `commit-gate.sh`; a shell cannot spawn
-  in-session subagents.
-- Pass the SAME `AUTO_RUNNER_ID` (env) to BOTH phases so finish releases the lease prep
-  took. An EXIT/INT/TERM trap releases any unreleased claim on crash.
+  `result ∈ {merged, pr-open, escalated, error}`.
+- **EXECUTE** (before finish) is the agent SESSION's job — the agent session
+  spawns the `auto:<role>` subagents via the host's native subagent mechanism and commits
+  each accepted change via `commit-gate.sh`.
+- Pass the SAME `AUTO_RUNNER_ID` (env) used by the claiming `prep` (in `auto-api.sh`) so
+  finish releases the lease prep took. An EXIT/INT/TERM trap releases any unreleased claim
+  on crash.
 - **exit:** `0` (progress / clean no-op); `2` (kill-switch); `11` (claim lost);
-  `13` (concurrency); `69` (account); `70`..`75` (PR/merge failures, after best-effort
+  `69` (account); `70`..`75` (PR/merge failures, after best-effort
   escalation); `1` (arg error).
 
-### (no `auto-driver.sh` / `auto-watchdog.sh`)
+### `auto-daemon.sh` — the long-running deterministic orchestrator (continuity)
 
-These portable external pacer + resurrection-watchdog scripts existed only for the
-multi-CLI fallback and have been **removed**. Continuity is native: `/loop` (in-session
-pacing) + a durable `/schedule` cloud-cron routine (out-of-session resurrection); both
-run the identical per-issue claim + kill-switch. See SKILL.md §4.4.
+```
+auto-daemon.sh start --repo <url> --account <name> [--theme <T>]
+                     [--duration <X> | --until <T>] [--once] [--max-prs <N>]
+                     [--max-escalations <N>] [--poll-interval <S>]
+                     [--report-timeout <S>] [--verbose]
+auto-daemon.sh stop
+auto-daemon.sh status
+```
+
+- **Continuity lives here, not in the agent host.** This bash daemon owns cadence, queue
+  polling, and FIFO triggering; `/loop` and `/schedule` are no longer used. It is
+  agent-agnostic — the orchestration loop is deterministic shell.
+- **start:** switches `gh` to `<account>` with exactly ONE `gh auth switch --user
+  <account>` (operator passing the account = authorization for that one switch), runs
+  preflight, then publishes `.auto/daemon/run.env` exporting `AUTO_RUN_ID`,
+  `CONTROL_ISSUE`, `STATUS_ISSUE`, `REPO`, `THEME`, `AUTO_GH_ACCOUNT`.
+  On preflight success it writes `.auto/daemon/ready`; on preflight failure it writes
+  `.auto/daemon/abort` (containing the `ABORT` code) and exits. It then enters the loop.
+- **loop / FIFO protocol:** the daemon talks to the agent session over two FIFOs under
+  `.auto/daemon/`:
+  - `work.fifo` (daemon→session): `ROUND <n> <queue-json>` | `STOP <reason>`.
+  - `report.fifo` (session→daemon): `REPORT result=<merged|pr-open|escalated|error|nothing> issue=<N|->`.
+- **pacing:** one issue at a time — report-driven while work exists (the next round is
+  dispatched only after each `REPORT`); when the queue is empty it idle-polls every ~15m
+  (`--poll-interval`, default `900`s).
+- **stop:** signals the running daemon to stop. **status:** reports daemon liveness /
+  run state.
+- **exit:** `0` clean stop / clean status; the preflight `ABORT` code on a failed
+  `start` preflight; `1` on bad arg.
+
+### `auto-api.sh` — the agent-facing verb layer (thin dispatcher)
+
+```
+auto-api.sh queue
+auto-api.sh prep <N>
+auto-api.sh commit --dir <wt> --message <msg>
+auto-api.sh finish <N> --worktree <wt> --branch <b>
+auto-api.sh escalate <N> <reason>
+auto-api.sh release <N> <reason>
+auto-api.sh kill-check
+auto-api.sh status <msg>
+```
+
+- The agent NEVER calls `git`/`gh` directly; it drives the (unmodified) engine through
+  these verbs. The dispatcher reads `.auto/daemon/run.env` for run context, and persists
+  a per-issue runner identity to `.auto/daemon/runner-<N>` so that `prep`'s claim and
+  `finish`'s release share ONE runner id.
+- **verbs:**
+  - `queue` — prints the prioritized eligible-candidates JSON (via `gh_queue_list`).
+  - `prep <N>` — claims the SPECIFIC chosen issue `<N>` (via `auto-claim.sh`) and cuts its
+    worktree (via `auto-worktree.sh`). **stdout:** `PREP issue=<N> branch=<b> worktree=<path> runner=<id>`.
+  - `commit --dir <wt> --message <msg>` — runs the commit-gate then `git commit`.
+  - `finish <N> --worktree <wt> --branch <b>` — delegates to `auto-iterate.sh --phase finish`.
+  - `escalate <N> <reason>` / `release <N> <reason>` — the corresponding engine actions.
+  - `kill-check` — runs `auto-kill.sh` → `KILLED` / `LIVE`.
+  - `status <msg>` — posts a status update.
+- **exit:** pass-through from the underlying engine script for each verb.
 
 ### `auto-gate.sh` — single stop-condition gate (`should_continue`)
 
@@ -154,7 +201,7 @@ auto-claim.sh <issue#> [--kind claim|reclaim]
 
 ```
 auto-release.sh <issue#> <reason> [--outcome success|recoverable|hard]
-                [--pr <url-or-#>] [--runner <id>] [--context <text>]
+                [--pr <url-or-#>] [--runner <id>]
 ```
 
 - Always run via an EXIT/INT/TERM trap. Outcome inferred from `<reason>` unless
@@ -169,33 +216,31 @@ auto-release.sh <issue#> <reason> [--outcome success|recoverable|hard]
 ### `auto-stale.sh` — scan + reclaim dead leases
 
 ```
-auto-stale.sh [--dry-run] [--limit N] [--reclaim] [--no-reclaim] [--quiet]
+auto-stale.sh [--limit N] [--reclaim] [--no-reclaim] [--quiet]
 ```
 
-- Default reclaims (`--dry-run` forces report-only). Reclaimable iff OPEN, not
+- Default reclaims (`--no-reclaim` forces report-only). Reclaimable iff OPEN, not
   held/stopped/blocked, newest lease older than `AUTO_LEASE_TTL`, no open PR. Reclaim
   delegates to `auto-claim.sh <N> --kind reclaim`. `--limit` default 200. Pins account.
 - **stdout (unless `--quiet`):** per candidate `RECLAIMED <N> <runner>` / `LOST <N>` /
   `SKIP <N> <why>`, then `SUMMARY scanned=<a> reclaimed=<b> skipped=<c>`.
 - **exit:** `0` scan complete; `69` account; `1` arg error / could not list.
 
-### `auto-worktree.sh` — per-issue worktree lifecycle + concurrency ceiling
+### `auto-worktree.sh` — per-issue worktree lifecycle
 
 ```
 auto-worktree.sh add    --issue <N> --type <t> --title <title> [--branch <b>]
-                        [--concurrency <K>] [--repo <owner/repo>] [--no-ceiling]
+                        [--repo <owner/repo>]
 auto-worktree.sh remove --issue <N> [--keep-branch] [--no-pr-check] [--repo <owner/repo>]
-auto-worktree.sh count
 auto-worktree.sh prune
 ```
 
 - `add`: prune, reuse-or-create worktree at `.auto/worktrees/issue-<N>` on branch
-  `auto/<type>/<N>-<slug>` from `origin/develop-auto`; enforces the ceiling (local
-  worktree count OR global `status:in-progress` count ≥ K) unless reusing/`--no-ceiling`.
+  `auto/<type>/<N>-<slug>` from `origin/develop-auto`.
   `remove`: force-remove worktree; deletes the local branch only when no open PR backs
   it (overridden by `--keep-branch`/`--no-pr-check`).
-- **stdout:** `add` prints the worktree path; `count` prints a single integer.
-- **exit:** `0`; `13` ceiling reached (`add`); `1` arg / missing subcommand.
+- **stdout:** `add` prints the worktree path.
+- **exit:** `0`; `1` arg / missing subcommand.
 
 ### `auto-pr-create.sh` — the only sanctioned PR-creation path
 
@@ -268,21 +313,6 @@ ci-parity-check.sh
   failing item types + diverging elements (and WARNs) go to stderr.
 - **exit:** `0` parity holds; `2` (`EX_CHECK_FAIL`) on FAIL / no repo / missing helper.
 
-### `auto-seed.sh` — the --seed / triage pass (thin orchestrator)
-
-```
-auto-seed.sh [--context <text|@file>] [--theme <label> | --label <label>]
-             [--reseed-closed] [--dry-run] [--no-tests] [--no-deps] [--verbose]
-```
-
-- Scan (TODO/test/doc/dep/context via `lib/seed.sh`) → optional classify/size → dedup by
-  location-stable fingerprint → file issues with computed `type:*`/`priority:*`/`size:*`
-  + `auto:seeded` (+`status:ready`+`auto:eligible` only when fully specced). `--dry-run`
-  prints the create/skip decision table and performs NO gh writes (read-only fingerprint
-  pre-read still runs). Pins account (non-dry-run).
-- **stdout:** per-candidate decision table + filed/skipped lines.
-- **exit:** `0` pass complete (or dry-run table); `69` account (non-dry-run); `1` arg error.
-
 > `lib/branch_match.py`, `lib/miniyaml.py`, `lib/parse_wf.py` are Python helpers
 > invoked by `ci-parity-check.sh`/preflight; their CLI contracts are out of scope of
 > this shell-interface doc.
@@ -351,7 +381,6 @@ other / unknown role → read-only (fail-safe) → `AUTO_TOOLS_READONLY` =
 | `git_worktree_prune` | — | exit 0 | `git worktree prune` |
 | `git_worktree_add` | `<issue#> <branch>` | prints worktree path; `EX_ERR` on fail | fetch+prune; reuse-or-`git worktree add -B <branch> ... origin/develop-auto` |
 | `git_worktree_remove` | `<issue#>` | exit 0 (idempotent) | force-removes worktree dir + prunes |
-| `git_worktree_count` | — | prints integer count of `.auto/worktrees/issue-*` worktrees | none |
 | `git_delete_local_branch` | `<branch>` | exit 0 (best-effort) | `git branch -D` |
 | `git_is_ancestor` | `<ancestor> <descendant>` | exit 0/1 | none |
 | `git_branch_derives_from_base` | `<head-branch>` | exit 0/1 (`EX_PR_PUSH` mapped by caller) | fetches base |
@@ -362,22 +391,24 @@ other / unknown role → read-only (fail-safe) → `AUTO_TOOLS_READONLY` =
 ### `lib/gh.sh`
 
 The only sanctioned GitHub path (uses the `gh` CLI, never the MCP). Account selection
-is deterministic; label/assignee edits are additive (set-union); comments are
-append-only; PR-by-head uses the strongly-consistent refs API. `gh_retry <evt> -- <gh
+is deterministic: `auto-daemon.sh start` performs exactly ONE `gh auth switch --user
+<account>` up front, then the engine snapshots that account and hard-refuses any later
+drift (`EX_PREFLIGHT_ACCOUNT`=69) — the lib functions themselves never switch.
+Label/assignee edits are additive (set-union); comments are append-only; PR-by-head
+uses the strongly-consistent refs API. `gh_retry <evt> -- <gh
 args...>` runs each gh call once per attempt with backoff+jitter on transient errors
 and returns gh's exit code.
 
 | Function | Args | stdout / return | Side effects |
 |----------|------|-----------------|--------------|
 | `gh_active_account` | — | prints active login; `EX_PREFLIGHT_ACCOUNT` if unknown | none |
-| `gh_select_account` | — | prints active login; `69` on fail | resolves the ACTIVE local gh login (never switches), asserts vs optional `AUTO_GH_ACCOUNT` pin + `.auto/.account` snapshot, ensures a git identity (missing-only write) |
+| `gh_select_account` | — | prints active login; `69` on fail | resolves the ACTIVE local gh login (never switches — `auto-daemon.sh start` already did the one `gh auth switch`), asserts vs the `AUTO_GH_ACCOUNT` pin + `.auto/.account` snapshot, ensures a git identity (missing-only write) |
 | `gh_assert_account` | — | prints login; `69` on drift | none (no switch) |
 | `gh_repo_slug` | — | prints `owner/repo` (cached); `EX_PREFLIGHT_ORIGIN` on fail | none |
 | `gh_auth_ok` | — | exit 0/1 | none |
 | `gh_has_scopes` | `<scope...>` | exit 0/1 | none |
 | `gh_issue_view` | `<issue#> [json-fields]` | prints issue JSON object | none |
 | `gh_queue_list` | `[extra-label]` | prints prioritized eligibility JSON array (P0 first, then number ASC) | none |
-| `gh_count_in_progress` | — | prints count of open `status:in-progress` issues | none |
 | `gh_issue_add_labels` | `<issue#> <label>...` | exit 0 / `EX_ERR` | additive label add |
 | `gh_issue_remove_labels` | `<issue#> <label>...` | exit 0 (tolerant/idempotent) | label remove |
 | `gh_issue_add_assignee` | `<issue#> [login]` | exit 0 (tolerant) | additive assignee add (default: the resolved run account, else `@me`) |
@@ -436,44 +467,27 @@ code.
 | `preflight_a12_killswitch` | `[control-issue#]` — kill-switch clear at start | `2` |
 | `preflight_run_all` | `[control-issue#]` — runs A1..A12 in order, stop at first fail | the failing code |
 
-### `lib/seed.sh`
-
-Sourced helpers for `auto-seed.sh`. Module-level globals the orchestrator OWNS:
-`CANDIDATES`, `FP_MAP_JSON`, `SCAN_ROOT`, `CONTEXT_RAW`, `SCAN_TESTS`, `SCAN_DEPS`,
-`RESEED_CLOSED`.
-
-| Function | Args | stdout / return | Side effects |
-|----------|------|-----------------|--------------|
-| `_push_candidate` | `<kind> <title> <context> <acceptance> <constraints> <files-json> <canonical_key> <s_type> <s_priority> <s_size>` | exit 0 | appends one candidate object to `$CANDIDATES` |
-| `seed_sha1` | `<string>` | prints 40-hex sha1 | none |
-| `seed_fingerprint` | `<kind> <canonical_key>` | prints `sha1(kind ":" key)` | none |
-| `seed_norm` | `<text>` | prints lowercased/whitespace-collapsed/trimmed text | none |
-| `seed_upper` | `<text>` | prints uppercased text | none |
-| `seed_relpath` | `<path>` | prints path relative to `SCAN_ROOT` | none |
-| `seed_scan_todos` | — | exit 0 | `git grep` TODO/FIXME/HACK/XXX → appends candidates |
-| `seed_scan_tests` | — | exit 0 (`SCAN_TESTS=0` skips run) | static skip detection + best-effort fast test run → candidates |
-| `seed_scan_docs` | — | exit 0 | README presence/section check → candidates |
-| `seed_scan_deps` | — | exit 0 (`SCAN_DEPS=0` skips) | npm/pip/go advisory+drift probes → candidates |
-| `seed_scan_context` | — | exit 0 | splits `CONTEXT_RAW` (text or `@file`) into per-bullet brain-dump candidates |
-| `seed_load_fingerprints` | — | exit 0 | one read-only gh query → builds `$FP_MAP_JSON` |
-| `seed_dedup_decision` | `<fingerprint>` | prints `create`\|`skip-open`\|`skip-closed`\|`reseed-closed` | pure lookup (honors `RESEED_CLOSED`) |
-| `seed_fp_issue_number` | `<fingerprint>` | prints existing issue number or empty | pure lookup |
-
 ---
 
-## (no adapters)
+## Distribution & orchestration (no adapters)
 
-Earlier multi-CLI builds had an `adapters/claude.sh` exposing four capabilities
-(`define-skill` / `spawn-subagent` / `headless-invoke` / `re-arm`) plus a
-`capability-selftest`, so the deterministic core could drive Claude / Codex / Grok / agy /
-opencode headlessly. That layer is **removed**. `/auto` is a Claude-native plugin:
+sa-implement is a **host-neutral SKILL package** (not a Claude plugin). The deterministic
+engine is plain bash; orchestration is the bash daemon `bin/auto-daemon.sh`, and the agent
+drives the engine through `bin/auto-api.sh`.
 
-- Role workers are in-session **`auto:<role>` subagents** spawned by the session via the
-  Agent tool (no `claude -p`, no adapter, no `--agent` flag). Their tools come from each
-  `agents/<role>.md` `tools:` frontmatter (writers get Edit/Write; reviewers are read-only).
-- Roles are distributed as plugin `agents/*.md` (no `define-skill` symlinking; the plugin
+- Role workers are **`auto:<role>` subagents** spawned by the agent session via the host's
+  native subagent mechanism (fallback, to be wired later: daemon-spawned agent processes).
+  Their tools come from each `agents/<role>.md` `tools:` frontmatter (writers get
+  Edit/Write; reviewers are read-only).
+- Roles ship as `agents/*.md` inside the package (no `define-skill` symlinking; the package
   install places them).
-- Continuity is `/loop` + `/schedule` (no `re-arm` script; see SKILL.md §4.4).
+- Continuity is the bash daemon (`bin/auto-daemon.sh`: cadence + queue polling + FIFO
+  triggering), not the host — `/loop` / `/schedule` are no longer used.
+
+Historical note: earlier multi-CLI builds had an `adapters/claude.sh` exposing four
+capabilities (`define-skill` / `spawn-subagent` / `headless-invoke` / `re-arm`) plus a
+`capability-selftest`, so the deterministic core could drive Claude / Codex / Grok / agy /
+opencode headlessly. That adapter layer is **removed**.
 
 ---
 
@@ -517,30 +531,6 @@ Transient, one per run. Identified by the body marker `AUTO_STATUS_MARKER`
 progress; ERROR-level events also comment here. Unpinned/closed on the run's terminal
 state. Never carries `auto:stop`.
 
-### Seed fingerprint marker (state-model §5.2)
-
-Each `--seed`-filed issue body ends with a hidden, location-stable marker:
-
-```
-<!-- auto-seed-fp: <40-hex-sha1> -->
-```
-
-`<sha1>` = `sha1(kind ":" canonical_key)` where `canonical_key` NEVER includes line
-numbers or versions (TODO: relpath+normalized-text; test: relpath+skip/suite id; doc:
-relpath+section; dep: ecosystem+package; brain-dump: normalized bullet text). Re-seed
-skips open fingerprints; skips closed unless `--reseed-closed`.
-
-### Candidate object (`lib/seed.sh`, internal)
-
-The element shape appended to `$CANDIDATES` by the scanners (arg order of
-`_push_candidate` is authoritative):
-
-```json
-{ "kind": "...", "title": "...", "context": "...", "acceptance": "...",
-  "constraints": "...", "files": ["<relpath>", ...], "canonical_key": "...",
-  "suggested_type": "...", "suggested_priority": "P0..P3", "suggested_size": "S|M|L|XL" }
-```
-
 ### `auto.config.json` (`.github/auto/auto.config.json`)
 
 Committed per-repo config, repo-relative path `AUTO_CONFIG_PATH`. **Every key is
@@ -551,8 +541,7 @@ no-force-push, no-Co-Authored-By, squash, green floor) are NOT configurable.
 | Key | Shape | Overrides |
 |-----|-------|-----------|
 | `schemaVersion` | `1` | `AUTO_SCHEMA_VERSION` |
-| `account.ghAccount` | string | `AUTO_GH_ACCOUNT` (optional pin; empty/omitted = follow the active local gh login) |
-| `concurrency.default` | int | `AUTO_CONCURRENCY_DEFAULT` (1) |
+| `account.ghAccount` | string | `AUTO_GH_ACCOUNT` (the pinned run account; normally set by `auto-daemon.sh start --account <name>`, which switches gh to it once and exports it via `run.env`. An empty/omitted config value just means the daemon-supplied account stands) |
 | `rounds.{S,M,L,XL}` | int (capped at `AUTO_ROUNDS_CEILING`=5) | `AUTO_ROUNDS_{S,M,L,XL}` (1,2,3,3) |
 | `escalations.max` | int | `MAX_ESCALATIONS` (5) |
 | `buildCheck.enabled` | bool | `false` → skip the build gate with a WARN (default `true`) |

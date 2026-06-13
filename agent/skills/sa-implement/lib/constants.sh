@@ -93,11 +93,8 @@ readonly AUTO_MAX_TOKENS_DEFAULT=0         # reserved, no-op in v1.
 readonly MAX_ESCALATIONS=5
 
 # --------------------------------------------------------------------------- #
-# 4. Concurrency & leasing (decisions.md D8, §4)
+# 4. Leasing (decisions.md §4)
 # --------------------------------------------------------------------------- #
-# --concurrency N parallelizes ISSUES (each its own lease+worktree+branch+PR).
-# Default N=1. Subagent fan-out within an issue is always flat/depth-1 (separate).
-readonly AUTO_CONCURRENCY_DEFAULT=1
 
 # Per-issue lease TTL. Heartbeat (renew) is posted at TTL/2 for long L/XL issues.
 readonly AUTO_LEASE_TTL=1800                # seconds (30 min).
@@ -160,7 +157,6 @@ readonly AUTO_STATUS_MARKER="<!-- auto-status v1 -->"
 # 8. Marker lines for machine-parseable issue comments (see interfaces.md schemas)
 # --------------------------------------------------------------------------- #
 readonly AUTO_LEASE_MARKER_PREFIX="<!-- auto-lease v1"        # lease comment marker.
-readonly AUTO_SEED_FP_PREFIX="<!-- auto-seed-fp:"            # seed dedup fingerprint marker.
 readonly AUTO_ESCALATION_MARKER_PREFIX="<!-- auto-escalation v1"  # human-gated escalation marker (idempotent dedup).
 
 # --------------------------------------------------------------------------- #
@@ -174,7 +170,6 @@ readonly AUTO_LABEL_ELIGIBLE="auto:eligible"   # /auto MAY pick this issue.
 readonly AUTO_LABEL_CLAIMED="auto:claimed"     # a lease is held (paired w/ lease comment + assignee).
 readonly AUTO_LABEL_HOLD="auto:hold"           # human-gated; /auto must NOT pick (escalations).
 readonly AUTO_LABEL_STOP="auto:stop"           # kill-switch (on the pinned #auto-control issue ONLY).
-readonly AUTO_LABEL_SEEDED="auto:seeded"       # issue filed by --seed.
 
 # Lifecycle (status:*).
 readonly AUTO_LABEL_STATUS_TRIAGE="status:triage"
@@ -205,7 +200,7 @@ readonly AUTO_LABEL_SIZE_L="size:L"
 readonly AUTO_LABEL_SIZE_XL="size:XL"
 
 # Convenience groups (space-separated; for installers/validators). Keep in sync above.
-readonly AUTO_LABELS_CONTROL="${AUTO_LABEL_ELIGIBLE} ${AUTO_LABEL_CLAIMED} ${AUTO_LABEL_HOLD} ${AUTO_LABEL_STOP} ${AUTO_LABEL_SEEDED}"
+readonly AUTO_LABELS_CONTROL="${AUTO_LABEL_ELIGIBLE} ${AUTO_LABEL_CLAIMED} ${AUTO_LABEL_HOLD} ${AUTO_LABEL_STOP}"
 readonly AUTO_LABELS_STATUS="${AUTO_LABEL_STATUS_TRIAGE} ${AUTO_LABEL_STATUS_READY} ${AUTO_LABEL_STATUS_IN_PROGRESS} ${AUTO_LABEL_STATUS_IN_REVIEW} ${AUTO_LABEL_STATUS_DONE} ${AUTO_LABEL_STATUS_BLOCKED}"
 readonly AUTO_LABELS_PRIORITY="${AUTO_LABEL_PRIORITY_P0} ${AUTO_LABEL_PRIORITY_P1} ${AUTO_LABEL_PRIORITY_P2} ${AUTO_LABEL_PRIORITY_P3}"
 readonly AUTO_LABELS_TYPE="${AUTO_LABEL_TYPE_FEATURE} ${AUTO_LABEL_TYPE_BUG} ${AUTO_LABEL_TYPE_CHORE} ${AUTO_LABEL_TYPE_SPIKE} ${AUTO_LABEL_TYPE_REFACTOR} ${AUTO_LABEL_TYPE_DOCS}"
@@ -219,10 +214,9 @@ readonly EX_OK=0                  # success.
 readonly EX_ERR=1                 # generic error.
 readonly EX_CHECK_FAIL=2          # check / parity FAIL.
 
-# 10-19 claim / concurrency.
+# 10-19 claim.
 readonly EX_CLAIM_LOST=11         # lost the claim race (someone else holds a live lease).
 readonly EX_NOT_CLAIMABLE=12      # issue not in a claimable state.
-readonly EX_CONCURRENCY=13        # global concurrency ceiling reached.
 
 # 60-69 preflight aborts (one per assertion; emit "ABORT <code> <reason>").
 # Each assertion has a UNIQUE code in this band. Mapping (assertion -> code):

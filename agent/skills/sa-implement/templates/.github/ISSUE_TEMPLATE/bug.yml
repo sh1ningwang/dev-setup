@@ -17,7 +17,7 @@ body:
     attributes:
       label: "Background"
       description: "What is broken and where: the observed failure, the component/file if known, when it started, and any related issues/PRs. Include error output/logs if available."
-      placeholder: "The seed scanner crashes on repos with no package.json; introduced by #42 ..."
+      placeholder: "The parser crashes on repos with no package.json; introduced by #42 ..."
     validations:
       required: true
   - type: textarea

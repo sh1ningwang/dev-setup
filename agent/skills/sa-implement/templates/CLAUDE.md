@@ -1,19 +1,19 @@
-# CLAUDE.md — standing context for Claude Code in this repository
+# Standing context for AI coding agents in this repository
 
 This file is **static conventions only**. The live work queue, run state, and
 priorities are **not** here — they live in **GitHub issues, labels, and PRs**
-(`/auto:sa-design` files them; `/auto:sa-implement` reads and works them at
+(`sa-design` files them; `sa-implement` reads and works them at
 runtime). Do not maintain a task list in this file.
 
-Read automatically by Claude Code in this repo. Keep it short, durable, and
-rule-shaped. `/auto` installs/updates it via the `auto:write-documentation` role inside
+Read by the AI coding agent working this repo. Keep it short, durable, and
+rule-shaped. `sa-implement` installs/updates it via the `auto:write-documentation` role inside
 a normal PR — never a direct push.
 
 ---
 
 ## Non-negotiable rules
 
-These are hard invariants. `/auto`'s deterministic gates enforce them; never work
+These are hard invariants. `sa-implement`'s deterministic gates enforce them; never work
 around a gate.
 
 - **Base branch is locked to `develop-auto`.** Every PR you open targets
@@ -53,20 +53,20 @@ The canonical taxonomy lives in `.github/auto/labels.json`. Summary:
 
 - **Control (`auto:*`)** — `auto:eligible` (pickable), `auto:claimed` (leased),
   `auto:hold` (human-gated, do not pick), `auto:stop` (kill-switch, on the pinned
-  `#auto-control` issue only), `auto:seeded` (filed by `--seed`).
+  `#auto-control` issue only).
 - **Lifecycle (`status:*`)** — `triage` → `ready` → `in-progress` → `in-review`
   → `done`; plus `blocked`.
 - **Priority** — `priority:P0..P3` (P0 highest). **Type** — `type:{feature,bug,
   chore,spike,refactor,docs}`. **Size** — `size:{S,M,L,XL}` (informational scope hint).
 
-`/auto` only picks an issue that is `auto:eligible` + `status:ready` and not held,
+`sa-implement` only picks an issue that is `auto:eligible` + `status:ready` and not held,
 claimed, or blocked. Missing/ambiguous size defaults to `L` (informational only).
 
 ---
 
 ## Roles & write access
 
-When `/auto` fans out to role subagents, write access is enforced by role:
+When `sa-implement` fans out to role subagents, write access is enforced by role:
 
 - **May write files:** `implement-backend`, `implement-frontend`,
   `write-documentation`.
@@ -75,7 +75,7 @@ When `/auto` fans out to role subagents, write access is enforced by role:
   (`reviewer-requirements` / `-quality` / `-tests`), `debug`, and `review-secrets-leaks`.
   Persistence they need is delegated to `write-documentation`.
 
-`/auto` decides **what to build** (design consensus) and **whether it is done** (review
+`sa-implement` decides **what to build** (design consensus) and **whether it is done** (review
 consensus, requiring 100% of the issue's Definition of Done — every verifiable item
 exercised and verified locally, never checked off on faith) by biased
 independent-subagent vote — never a single agent. `size:*` is informational; the same
@@ -83,7 +83,7 @@ protocol runs for every issue.
 
 ---
 
-## Stopping `/auto`
+## Stopping `sa-implement`
 
 Add the `auto:stop` label to the pinned `#auto-control` issue, **or** create the
 file `.auto/STOP` on the `develop-auto` branch. Either halts pickup within ~20s

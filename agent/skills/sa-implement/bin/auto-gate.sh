@@ -15,7 +15,7 @@
 #                                                                     /max-escalations
 #   4. backlog      (no eligible issues): --once -> STOP backlog-empty;
 #                   otherwise IDLE-BACKOFF (sleep, then re-evaluate so the run keeps
-#                   polling for newly-filed/--seeded work) rather than exiting.
+#                   polling for newly-filed work) rather than exiting.
 #   5. operator     (.auto/.stopflag sentinel set by a SIGTERM trap)-> STOP operator
 #   else                                                           -> CONTINUE
 #
@@ -73,7 +73,7 @@ source "${_SELF_DIR}/../lib/gh.sh"
 export AUTO_PHASE="${AUTO_PHASE:-gate}"
 
 # Default idle-backoff between empty-backlog re-checks (seconds). Bounded so a
-# long-running idle run polls for newly-filed/--seeded work at a sane cadence
+# long-running idle run polls for newly-filed work at a sane cadence
 # without hammering the API; overridable via --backoff or AUTO_IDLE_BACKOFF.
 : "${AUTO_IDLE_BACKOFF:=60}"
 
@@ -284,7 +284,7 @@ fi
 
 # Idle-backoff: sleep, then re-check ONCE. During the sleep, re-honour the operator
 # sentinel and the kill-switch so a stop lands promptly even while idling.
-log_info "gate_idle" "backlog empty; idle-backoff ${BACKOFF}s then re-check for new/--seeded work"
+log_info "gate_idle" "backlog empty; idle-backoff ${BACKOFF}s then re-check for new work"
 slept=0
 while (( slept < BACKOFF )); do
   sleep 1

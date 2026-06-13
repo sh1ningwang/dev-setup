@@ -183,14 +183,6 @@ git_worktree_remove() {
   return 0
 }
 
-# git_worktree_count
-#   Print the number of live /auto issue worktrees (the per-process input to the
-#   concurrency ceiling, architecture §3.2). Counts only paths under
-#   AUTO_WORKTREES_DIR so unrelated worktrees are ignored.
-git_worktree_count() {
-  git worktree list --porcelain 2>/dev/null \
-    | awk -v d="$AUTO_WORKTREES_DIR/issue-" '/^worktree /{ if (index($2, d)==1) c++ } END{ print c+0 }'
-}
 
 # git_delete_local_branch <branch>
 #   Delete a local branch (best-effort). Used in cleanup ONLY when no PR was
