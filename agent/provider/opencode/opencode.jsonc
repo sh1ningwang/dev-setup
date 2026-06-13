@@ -33,12 +33,24 @@
   // Enable built-in code formatters.
   "formatter": true,
 
-  // Per-model overrides for the built-in Z.AI provider. GLM uses an
-  // Anthropic-style thinking toggle (type enabled/disabled) rather than a
-  // graded reasoning-effort dial, so reasoning is turned on per model here.
+  // Z.AI provider config. The GLM Coding Plan is served from the coding
+  // endpoint below (NOT the default Z.AI endpoint), and the request must
+  // carry the API key — without it OpenCode sends no auth header and the
+  // server rejects the call ("authentication parameter not received").
+  // The key is read from the ZAI_API_KEY env var so no secret is committed:
+  // export it in your shell (`export ZAI_API_KEY=...` from
+  // https://z.ai/manage-apikey/apikey-list), or run `opencode auth login`
+  // and pick Z.AI Coding Plan instead.
+  //
+  // Per-model: GLM uses an Anthropic-style thinking toggle (type
+  // enabled/disabled), so reasoning is turned on per model here.
   // Note: GLM 5.2 does not exist as of this writing — latest is GLM 5.1.
   "provider": {
     "zai": {
+      "options": {
+        "baseURL": "https://api.z.ai/api/coding/paas/v4",
+        "apiKey": "{env:ZAI_API_KEY}"
+      },
       "models": {
         "glm-4.7": {
           "options": {
