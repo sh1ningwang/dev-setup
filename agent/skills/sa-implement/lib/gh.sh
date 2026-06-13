@@ -320,11 +320,12 @@ gh_issue_view() {
 #   semantics across repeated --label) plus a jq post-filter to EXCLUDE the
 #   negative labels (gh has no "not label" filter), so the contract is exact.
 gh_queue_list() {
-  local extra="${1:-}"
+  local extra="${1:-}" assignee="${2:-}"
   local args=(issue list --state open --limit 200
               --label "$AUTO_LABEL_ELIGIBLE"
               --json "number,title,labels,createdAt,updatedAt,url")
   [[ -n "$extra" ]] && args+=(--label "$extra")
+  [[ -n "$assignee" ]] && args+=(--assignee "$assignee")
 
   local raw
   raw="$(gh_retry gh.queue_list -- "${args[@]}")" || return "$?"
