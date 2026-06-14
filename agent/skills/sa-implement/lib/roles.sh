@@ -8,7 +8,7 @@
 #
 # This is how the user's write-access rule (critical-rules.md) is ENFORCED: a read-only
 # role's subagent file grants NO Edit/Write/Bash, so it physically cannot modify files
-# or run commands. (Native Claude subagents read their own `tools:` frontmatter when the
+# or run commands. (Subagents adopt their own `tools:` frontmatter when the
 # session spawns auto:<role>; `role_allowed_tools` below is a legacy helper kept so the
 # classification has one source of truth — it is no longer passed to any spawn.)
 # An UNKNOWN role defaults to read_only (fail-safe).

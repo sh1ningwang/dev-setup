@@ -168,7 +168,7 @@ stays in the member's own transcript.
 ### 5.3 Write-access enforcement (honors user critical-rules)
 Each role's tool grant lives in its native subagent file `agents/<role>.md` `tools:` frontmatter — applied automatically by the host agent when the session spawns the role via the host's native subagent mechanism (the session passes no tool string):
 - **Write-capable** (`implement-backend`, `implement-frontend`, `write-documentation`): `Read, Edit, Write, Bash, Grep, Glob`.
-- **Read-only** (the design solvers, the meta-judge, the review triplet, debug, secrets-leaks): `Read, Grep, Glob` — no Edit/Write/Bash, so they **physically cannot mutate the repo or run commands**. They emit findings on stdout (their returned summary); the session feeds them the scoped diff. Persistence is delegated to `auto:write-documentation`.
+- **Read-only** (the design solvers, the meta-judge, the review triplet, debug, secrets-leaks): `Read, Grep, Glob` — no Edit/Write/Bash, so they **physically cannot mutate the repo or run commands**. They emit findings on stdout (their returned summary); the session feeds them the scoped diff. Persistence is delegated to `write-documentation`.
 
 `lib/roles.sh` keeps the same write/read-only classification as the single source of truth that the agent files mirror. This makes the user's write-access rule **enforced by the subagent definitions**, not merely verbal.
 
