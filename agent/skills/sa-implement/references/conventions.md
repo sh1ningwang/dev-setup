@@ -180,7 +180,7 @@ grant, so a read-only role physically cannot write:
 - **Read-only (9 roles):** all analyze/architect/review/debug roles → `Read, Grep, Glob`
   (no Edit/Write/Bash — they cannot mutate the repo or run commands). They emit findings on
   stdout; the orchestrator feeds them the scoped diff, and persistence is delegated to
-  `auto:write-documentation`.
+  `write-documentation`.
 - An unknown/unscoped spawn defaults to **read-only** (fail-safe).
 
 ---

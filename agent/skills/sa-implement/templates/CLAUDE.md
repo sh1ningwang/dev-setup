@@ -6,7 +6,7 @@ priorities are **not** here — they live in **GitHub issues, labels, and PRs**
 runtime). Do not maintain a task list in this file.
 
 Read by the AI coding agent working this repo. Keep it short, durable, and
-rule-shaped. `sa-implement` installs/updates it via the `auto:write-documentation` role inside
+rule-shaped. `sa-implement` installs/updates it via the `write-documentation` role inside
 a normal PR — never a direct push.
 
 ---

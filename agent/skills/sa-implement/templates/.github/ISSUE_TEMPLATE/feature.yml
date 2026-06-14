@@ -3,7 +3,7 @@ description: "A new user-facing capability, specified to implementation-ready de
 title: "feat: <concise summary>"
 # Default labels applied at filing time. The canonical taxonomy lives in
 # .github/auto/labels.json (single source of truth, mirrors lib/constants.sh).
-# Newly filed work starts at status:triage; a human (or /auto:sa-design) promotes
+# Newly filed work starts at status:triage; a human (or /sa-design) promotes
 # it to status:ready + auto:eligible once it is fully specced.
 labels: ["type:feature", "status:triage"]
 body:
@@ -11,7 +11,7 @@ body:
     attributes:
       value: |
         Fill every required field. This body is read as **structured state** by the
-        implementation loop (`/auto:sa-implement`): the Implementation Instructions
+        implementation loop (`/sa-implement`): the Implementation Instructions
         are the spec, and the Definition of Done gates the merge. A complete spec
         lets anyone — human or agent — pick this issue up cold and implement it
         correctly. Under-specced issues stay in `status:triage` and are not picked

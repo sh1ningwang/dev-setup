@@ -39,7 +39,7 @@ if [[ -n "${AUTO_GITLEAKS_SOURCED:-}" ]]; then
 fi
 readonly AUTO_GITLEAKS_SOURCED=1
 
-# Shipped baseline config. lib/ -> ../templates/.gitleaks.toml (plugin layout:
+# Shipped baseline config. lib/ -> ../templates/.gitleaks.toml (legacy plugin layout, no longer used:
 # plugins/auto/templates/.gitleaks.toml). The installer also drops a copy at the
 # target repo root; a repo-local config there takes precedence.
 _auto_gl_root="$(cd "${_AUTO_GL_LIBDIR}/.." && pwd)"
