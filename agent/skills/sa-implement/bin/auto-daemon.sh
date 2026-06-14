@@ -187,10 +187,19 @@ daemon_loop() {
 
     if [[ "$gate" == "$AUTO_GATE_STOP"* ]]; then
       local reason="${gate#"$AUTO_GATE_STOP" }"
-      log_info "daemon_stop" "gate stop: $reason"
-      # Best-effort: unblock a waiting session so it can disarm and report.
-      write_fifo_line "$WORK_FIFO" 5 "STOP ${reason}" || true
-      return 0
+      # The daemon owns backlog cadence (the pacing note above): an empty backlog is
+      # terminal ONLY in single-shot (--once) mode. In continuous mode we do NOT let
+      # the gate's backlog-empty stop end the run — we fall through to the idle-poll
+      # below (step 2) so the daemon stays alive and keeps polling for newly-filed
+      # work indefinitely, only stopping when the user/kill-switch/time/budget says so.
+      # Every other stop reason (kill-switch/time/budget/operator) stays terminal here.
+      if [[ "$reason" != "$AUTO_STOP_REASON_BACKLOG" || "$once" -eq 1 ]]; then
+        log_info "daemon_stop" "gate stop: $reason"
+        # Best-effort: unblock a waiting session so it can disarm and report.
+        write_fifo_line "$WORK_FIFO" 5 "STOP ${reason}" || true
+        return 0
+      fi
+      log_debug "daemon_idle" "gate reported backlog-empty; staying alive (continuous mode)"
     fi
 
     # 2) Build the candidate queue for the agent to pick from (decision B).
