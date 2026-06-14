@@ -223,8 +223,8 @@ fi
 _assert preflight_a12_killswitch "${CONTROL_ISSUE}"
 
 # --------------------------------------------------------------------------- #
-# (Native plugin: role workers are in-session Claude subagents spawned by the /auto
-# orchestrator via the Agent tool. There is no external adapter to probe, so the old
+# (Role workers are in-session subagents the orchestrator spawns from the bundled agents/*.md (the
+# host session reads each role file). There is no external adapter to probe, so the old
 # capability self-test is gone — the live session IS the host.)
 # --------------------------------------------------------------------------- #
 

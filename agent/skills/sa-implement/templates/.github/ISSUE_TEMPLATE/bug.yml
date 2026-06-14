@@ -9,7 +9,7 @@ body:
     attributes:
       value: |
         Fill every required field. This body is read as **structured state** by the
-        implementation loop (`/auto:sa-implement`): the Implementation Instructions
+        implementation loop (`/sa-implement`): the Implementation Instructions
         are the spec, and the Definition of Done gates the merge — it MUST include a
         regression test that fails before the fix and passes after.
   - type: textarea

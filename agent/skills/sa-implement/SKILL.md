@@ -217,16 +217,29 @@ claim, report, and stop.
 ## 3. EXECUTE — the consensus protocol (design gate + review gate)
 
 Make the two real cognitive decisions — **what to build** and **is it done** — by **subagent
-consensus**, never a single agent. Spawn each role using the host's subagent mechanism (this
-session is the host); spawn each **triplet in parallel** so the three are isolated — a
-subagent sees only its dispatch brief (`GoalArtifact` + repo/diff), never its peers' output.
+consensus**, never a single agent. Spawn each **triplet in parallel** so the three are isolated —
+a subagent sees only its dispatch brief (`GoalArtifact` + repo/diff), never its peers' output.
 Carry back only each subagent's compact `conclusion`. Inject the MANDATORY directive (and the
 issue's full spec) into every brief. Read-only roles get the scoped diff
 (`git diff origin/develop-auto...HEAD`); they cannot mutate.
 
-> **Host without native subagents (e.g. Codex):** fall back to having the daemon spawn extra
-> agent processes that vote alongside this session. *(Fallback path — to be wired later; the
-> primary path uses the host's native subagents.)*
+> **Self-contained, host-neutral spawning (no plugin, no registered agent types).** The role
+> definitions ship *inside this skill* as `agents/<role>.md` — they are DATA you read, never
+> host-registered agent types. To spawn a role, **read `$AUTO_HOME/agents/<role>.md`** and
+> dispatch ONE isolated subagent through whatever generic subagent primitive your host provides,
+> passing the role file's body as that subagent's instructions plus your dispatch brief. Do NOT
+> depend on any plugin, marketplace, or pre-registered/namespaced agent name — the skill carries
+> its own roles, so the consensus runs identically on Claude Code, OpenCode, Codex, or any host.
+>
+> - **Claude Code** → the Task/Agent tool with a generic subagent type (e.g. `general-purpose`);
+>   put the role file's body in the prompt.
+> - **OpenCode / Codex / others** → that host's task/subagent command, with the same injection.
+> - **Enforce the role's `tools:` line yourself** by stating it in the brief (read-only roles:
+>   "you may only Read/Grep/Glob — do not edit, write, or run mutations; return only your
+>   conclusion"). The frontmatter `tools:` is the contract; the orchestrator applies it.
+> - **Headless host with no in-session subagents** → the engine can fan out by shelling the
+>   host's headless CLI (e.g. `claude -p`, `opencode run`, `codex exec`) with the same role body
+>   + brief. Optional fallback; the primary path is in-session subagents.
 
 1. **intake.** Build the `GoalArtifact`: `normalized_goal`, `constraints`, `success_criteria`
    (= the issue's Definition of Done + acceptance criteria — the fixed target), `iteration_question`.
@@ -246,9 +259,10 @@ issue's full spec) into every brief. Read-only roles get the scoped diff
    blocking items, commit via the gate, re-run REVIEW consensus. Bound at `AUTO_ROUNDS_CEILING`
    (5); on exhaustion, escalate. On `done`, EXECUTE succeeds → `finish` (§2.5).
 
-The roles ship as `agents/<role>.md` with their own `tools:` grants. Spawn them by the host's
-convention (e.g. an `auto:`-scoped name if the host namespaces skill-bundled agents, else the
-plain role name) — the grant is applied by the role file, you pass no tool string.
+All twelve roles live in `agents/<role>.md` (a `tools:` contract + a role brief). They are
+self-contained: you spawn a role by reading its file and injecting it into a generic host
+subagent (see the host-neutral spawning note above), so the consensus runs with zero dependency
+on a host plugin or agent registry.
 
 ---
 
