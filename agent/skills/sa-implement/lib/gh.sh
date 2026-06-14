@@ -309,12 +309,13 @@ gh_issue_view() {
   gh_retry gh.issue_view -- issue view "$n" --json "$fields"
 }
 
-# gh_queue_list [extra-label]
+# gh_queue_list [extra-label] [assignee]
 #   Return the prioritized eligibility queue as a JSON array. An issue is
 #   queue-eligible iff it is OPEN, carries auto:eligible, and is NOT held/stopped
 #   /claimed/blocked. Optional <extra-label> further scopes the query (the
-#   --theme/--label filter). Sorted DESC by priority (P0 first), then by issue
-#   number ASC (oldest first) as a stable tiebreak.
+#   --theme/--label filter); optional <assignee> restricts to issues assigned to
+#   that user (the daemon's --assignee filter). Sorted DESC by priority (P0 first),
+#   then by issue number ASC (oldest first) as a stable tiebreak.
 #
 #   Eligibility label-set filtering is done with `gh issue list --label` (AND
 #   semantics across repeated --label) plus a jq post-filter to EXCLUDE the

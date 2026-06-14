@@ -165,7 +165,10 @@ Repeat until the daemon sends `STOP`:
    empty, simply re-issue it — the daemon only pushes when there is work or on `STOP`.)
 
 2. **On `STOP <reason>`** → the run reached a terminal state (kill-switch / time / max-prs /
-   max-escalations / backlog-empty / operator). Tear down (§5) and deliver the final report.
+   max-escalations / operator; plus `backlog-empty` **only in single-shot `--once` mode**).
+   In normal continuous mode an empty backlog is **never** terminal — the daemon idle-polls
+   (~15m) and stays alive until the user/kill-switch/time/budget stops it. Tear down (§5) and
+   deliver the final report.
 
 3. **On `ROUND` → pick an issue (your decision).** Parse the `queue-json` (a priority-sorted
    array of `{number,title,labels,url}`). Choose the single best next issue per priority and
